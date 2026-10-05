@@ -1,0 +1,1 @@
+ALTER TABLE "shop_memberships" ADD CONSTRAINT "shop_memberships_user_id_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE CASCADE;

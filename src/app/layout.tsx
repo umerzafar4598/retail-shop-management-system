@@ -2,8 +2,16 @@ import type { Metadata } from "next";
 import { Space_Grotesk, Montserrat } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import React from "react";
 
-const montserratHeading = Montserrat({subsets:['latin'],variable:'--font-heading'});
+interface LayoutProps {
+  children: React.ReactNode;
+}
+
+const montserratHeading = Montserrat({
+  variable: '--font-heading',
+  subsets: ['latin'],
+});
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -20,7 +28,7 @@ export const metadata: Metadata = {
   description: "Hamid Mobiles and Communications | Hamid Mobiles",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: LayoutProps) {
   return (
     <html
       lang="en"

@@ -1,22 +1,13 @@
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { redirect } from "next/navigation";
 
-export default function Home() {
-  return (
-    <main className="flex min-h-svh items-center justify-center p-6">
-      <Card className="w-full max-w-lg">
-        <CardHeader>
-          <CardTitle>Shop Management System</CardTitle>
-        </CardHeader>
+import { getCurrentSession } from "@/lib/session";
 
-        <CardContent>
-          Project foundation is ready.
-        </CardContent>
-      </Card>
-    </main>
-  );
+export default async function HomePage() {
+  const session = await getCurrentSession();
+
+  if (session) {
+    redirect("/dashboard");
+  }
+
+  redirect("/login");
 }
