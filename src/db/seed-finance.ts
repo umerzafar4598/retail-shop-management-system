@@ -9,6 +9,7 @@ const FINANCE_PERMISSIONS = [
     "financial_accounts.create",
     "financial_accounts.update",
     "financial_accounts.deactivate",
+    "financial_accounts.opening_balance",
     "ledger.view",
 ] as const;
 
@@ -41,6 +42,27 @@ const LEDGER_SEED: readonly LedgerSeed[] = [
         accountType: "ASSET",
         normalBalance: "DEBIT",
         systemKey: "CASH_DRAWER",
+    },
+    {
+        code: "1100",
+        name: "Digital Wallets",
+        accountType: "ASSET",
+        normalBalance: "DEBIT",
+        systemKey: "DIGITAL_WALLETS",
+    },
+    {
+        code: "1150",
+        name: "Bank Accounts",
+        accountType: "ASSET",
+        normalBalance: "DEBIT",
+        systemKey: "BANK_ACCOUNTS",
+    },
+    {
+        code: "1190",
+        name: "Other Financial Assets",
+        accountType: "ASSET",
+        normalBalance: "DEBIT",
+        systemKey: "OTHER_FINANCIAL_ASSETS",
     },
     {
         code: "1200",
@@ -179,6 +201,8 @@ function getPermissionDescription(key: PermissionKey) {
             return "Update shop financial account information.";
         case "financial_accounts.deactivate":
             return "Deactivate or reactivate shop financial accounts.";
+        case "financial_accounts.opening_balance":
+            return "Set opening balances for shop financial accounts.";
         case "ledger.view":
             return "View the shop accounting ledger.";
     }
