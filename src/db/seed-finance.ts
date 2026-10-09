@@ -11,6 +11,8 @@ const FINANCE_PERMISSIONS = [
     "financial_accounts.deactivate",
     "financial_accounts.opening_balance",
     "ledger.view",
+    "account_transfers.view",
+    "account_transfers.create",
 ] as const;
 
 const MANAGER_FINANCE_PERMISSIONS = [
@@ -19,6 +21,8 @@ const MANAGER_FINANCE_PERMISSIONS = [
     "financial_accounts.update",
     "financial_accounts.deactivate",
     "ledger.view",
+    "account_transfers.view",
+    "account_transfers.create",
 ] as const;
 
 const CASHIER_FINANCE_PERMISSIONS = [
@@ -205,6 +209,10 @@ function getPermissionDescription(key: PermissionKey) {
             return "Set opening balances for shop financial accounts.";
         case "ledger.view":
             return "View the shop accounting ledger.";
+        case "account_transfers.view":
+            return "View transfers between shop financial accounts.";
+        case "account_transfers.create":
+            return "Transfer money between shop financial accounts.";
     }
 }
 
