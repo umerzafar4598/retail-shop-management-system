@@ -6,10 +6,12 @@ import {
     createPurchaseDraftAction,
     type PurchaseActionState,
 } from "./actions";
+import { updatePurchaseDraftAction } from "./draft-actions";
 
 type SupplierOption = {
     id: string;
     name: string;
+    active: boolean;
 };
 
 type VariantOption = {
@@ -18,16 +20,36 @@ type VariantOption = {
     productName: string;
     variantName: string;
     trackByImei: boolean;
+    variantActive: boolean;
+    productActive: boolean;
+};
+
+type EditPurchaseDraftData = {
+    id: string;
+    documentNo: string;
+    supplierId: string | null;
+    purchaseDate: string;
+    discountAmount: string;
+    notes: string | null;
+    lines: Array<{
+        variantId: string;
+        quantity: number;
+        unitCost: string;
+    }>;
 };
 
 type PurchaseDraftFormProps = {
     suppliers: SupplierOption[];
     variants: VariantOption[];
     today: string;
+    purchase?: EditPurchaseDraftData;
 };
 
 type DraftLine = {
     key: number;
+    variantId: string;
+    quantity: string;
+    unitCost: string;
 };
 
 const initialState: PurchaseActionState = {
@@ -39,25 +61,32 @@ export default function PurchaseDraftForm({
     suppliers,
     variants,
     today,
+    purchase,
 }: PurchaseDraftFormProps) {
-    const [state, formAction, pending] = useActionState(
-        createPurchaseDraftAction,
-        initialState,
-    );
+    const action = purchase
+        ? updatePurchaseDraftAction
+        : createPurchaseDraftAction;
+    const [state, formAction, pending] = useActionState(action, initialState);
 
-    const [lines, setLines] = useState<DraftLine[]>([
-        { key: 0 },
-    ]);
-    const [nextKey, setNextKey] = useState(1);
+    const [lines, setLines] = useState<DraftLine[]>(() =>
+        purchase
+            ? purchase.lines.map((line, index) => ({
+                  key: index,
+                  variantId: line.variantId,
+                  quantity: String(line.quantity),
+                  unitCost: line.unitCost,
+              }))
+            : [{ key: 0, variantId: "", quantity: "1", unitCost: "" }],
+    );
+    const [nextKey, setNextKey] = useState(lines.length);
 
     function addLine() {
         if (lines.length >= 100) return;
 
         setLines((current) => [
             ...current,
-            { key: nextKey },
+            { key: nextKey, variantId: "", quantity: "1", unitCost: "" },
         ]);
-
         setNextKey((current) => current + 1);
     }
 
@@ -74,56 +103,54 @@ export default function PurchaseDraftForm({
             action={formAction}
             className="space-y-5 rounded-xl border bg-card p-5 shadow-sm"
         >
+            {purchase ? (
+                <input type="hidden" name="purchaseId" value={purchase.id} />
+            ) : null}
+
             <div>
-                <h2 className="font-semibold">Create Purchase Draft</h2>
+                <h2 className="font-semibold">
+                    {purchase ? `Edit Draft ${purchase.documentNo}` : "Create Purchase Draft"}
+                </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                    Enter the supplier invoice or quote details. Saving this
-                    draft does not add stock or record a payment.
+                    {purchase
+                        ? "Update the purchase details before receiving it. Saving changes does not add stock or record a payment."
+                        : "Enter the supplier invoice or quote details. Saving this draft does not add stock or record a payment."}
                 </p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
-                    <label
-                        htmlFor="purchase-supplier"
-                        className="text-sm font-medium"
-                    >
+                    <label htmlFor="purchase-supplier" className="text-sm font-medium">
                         Supplier *
                     </label>
-
                     <select
                         id="purchase-supplier"
                         name="supplierId"
                         required
-                        defaultValue=""
+                        defaultValue={purchase?.supplierId ?? ""}
                         className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                     >
                         <option value="" disabled>
                             Select a supplier
                         </option>
-
                         {suppliers.map((supplier) => (
                             <option key={supplier.id} value={supplier.id}>
-                                {supplier.name}
+                                {supplier.name}{!supplier.active ? " · inactive (keep or reactivate)" : ""}
                             </option>
                         ))}
                     </select>
                 </div>
 
                 <div className="space-y-1.5">
-                    <label
-                        htmlFor="purchase-date"
-                        className="text-sm font-medium"
-                    >
+                    <label htmlFor="purchase-date" className="text-sm font-medium">
                         Purchase date *
                     </label>
-
                     <input
                         id="purchase-date"
                         name="purchaseDate"
                         type="date"
                         required
-                        defaultValue={today}
+                        defaultValue={purchase?.purchaseDate ?? today}
                         className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                     />
                 </div>
@@ -137,7 +164,6 @@ export default function PurchaseDraftForm({
                             Choose each variant and enter its quantity and cost per unit.
                         </p>
                     </div>
-
                     <button
                         type="button"
                         onClick={addLine}
@@ -161,24 +187,25 @@ export default function PurchaseDraftForm({
                                 >
                                     Product variant *
                                 </label>
-
                                 <select
                                     id={`purchase-variant-${line.key}`}
                                     name="variantId"
                                     required
-                                    defaultValue=""
+                                    defaultValue={line.variantId}
                                     className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                                 >
                                     <option value="" disabled>
                                         Select a variant
                                     </option>
-
                                     {variants.map((variant) => (
                                         <option key={variant.id} value={variant.id}>
                                             {variant.productName} — {variant.variantName}
                                             {" · "}
                                             {variant.sku}
                                             {variant.trackByImei ? " · IMEI" : ""}
+                                            {!variant.variantActive || !variant.productActive
+                                                ? " · inactive (existing draft item)"
+                                                : ""}
                                         </option>
                                     ))}
                                 </select>
@@ -191,7 +218,6 @@ export default function PurchaseDraftForm({
                                 >
                                     Quantity *
                                 </label>
-
                                 <input
                                     id={`purchase-quantity-${line.key}`}
                                     name="quantity"
@@ -200,7 +226,7 @@ export default function PurchaseDraftForm({
                                     max="1000000"
                                     step="1"
                                     required
-                                    defaultValue="1"
+                                    defaultValue={line.quantity}
                                     className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                                 />
                             </div>
@@ -212,7 +238,6 @@ export default function PurchaseDraftForm({
                                 >
                                     Unit cost (PKR) *
                                 </label>
-
                                 <input
                                     id={`purchase-cost-${line.key}`}
                                     name="unitCost"
@@ -221,6 +246,7 @@ export default function PurchaseDraftForm({
                                     max="999999999999.99"
                                     step="0.01"
                                     required
+                                    defaultValue={line.unitCost}
                                     placeholder="0.00"
                                     className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                                 />
@@ -242,21 +268,16 @@ export default function PurchaseDraftForm({
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                    Enter actual costs from your supplier&apos;s quote or invoice.
-                    For IMEI-tracked products, individual IMEIs will be recorded
-                    during the receiving step, not while drafting the purchase.
+                    Enter actual costs from your supplier&apos;s quote or invoice. For
+                    IMEI-tracked products, individual IMEIs are recorded during receiving.
                 </p>
             </section>
 
             <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
-                    <label
-                        htmlFor="purchase-discount"
-                        className="text-sm font-medium"
-                    >
+                    <label htmlFor="purchase-discount" className="text-sm font-medium">
                         Overall discount (PKR)
                     </label>
-
                     <input
                         id="purchase-discount"
                         name="discountAmount"
@@ -264,29 +285,25 @@ export default function PurchaseDraftForm({
                         min="0"
                         max="999999999999.99"
                         step="0.01"
-                        defaultValue="0.00"
+                        defaultValue={purchase?.discountAmount ?? "0.00"}
                         required
                         className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                     />
-
                     <p className="text-xs text-muted-foreground">
                         The server calculates the subtotal and final total.
                     </p>
                 </div>
 
                 <div className="space-y-1.5">
-                    <label
-                        htmlFor="purchase-notes"
-                        className="text-sm font-medium"
-                    >
+                    <label htmlFor="purchase-notes" className="text-sm font-medium">
                         Notes
                     </label>
-
                     <textarea
                         id="purchase-notes"
                         name="notes"
                         rows={3}
                         maxLength={2000}
+                        defaultValue={purchase?.notes ?? ""}
                         placeholder="Supplier invoice reference or other details"
                         className="w-full resize-y rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                     />
@@ -300,7 +317,7 @@ export default function PurchaseDraftForm({
                     className={`text-sm ${state.status === "success"
                         ? "text-emerald-700 dark:text-emerald-400"
                         : "text-destructive"
-                        }`}
+                    }`}
                 >
                     {state.message}
                 </p>
@@ -311,7 +328,13 @@ export default function PurchaseDraftForm({
                 disabled={pending || suppliers.length === 0 || variants.length === 0}
                 className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
             >
-                {pending ? "Saving draft..." : "Save Purchase Draft"}
+                {pending
+                    ? purchase
+                        ? "Updating draft..."
+                        : "Saving draft..."
+                    : purchase
+                        ? "Save Changes"
+                        : "Save Purchase Draft"}
             </button>
         </form>
     );

@@ -90,8 +90,8 @@ export default async function PurchasesPage() {
                 </h1>
 
                 <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-                    Record supplier purchases, review saved drafts, and prepare
-                    incoming stock for a future validated receiving workflow.
+                    Record supplier invoices, prepare stock receiving, and track payments owed
+                    to suppliers. Posted purchases update inventory and accounting together.
                 </p>
             </header>
 
@@ -241,9 +241,10 @@ export default async function PurchasesPage() {
             </section>
 
             <p className="text-xs text-muted-foreground">
-                Saving a draft does not receive inventory, record supplier
-                payments, or post accounting entries. Those operations will
-                be implemented separately and will require their own validation.
+                Drafts do not change inventory or accounting balances. Posting records the
+                stock movement, purchase liability, and any initial payment in one
+                transaction. Posted documents are retained for audit and corrected
+                through dedicated return or reversal workflows.
             </p>
         </main>
     );

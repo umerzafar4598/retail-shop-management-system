@@ -7,6 +7,7 @@ import { getPurchaseReceivingDetailsForShop } from "@/lib/purchases/purchase-rec
 import Decimal from "decimal.js";
 import SupplierPaymentForm from "../supplier-payment-form";
 import ReceivePurchaseForm from "../receive-purchase-form";
+import CancelPurchaseDraftForm from "../draft-cancel-form";
 
 const moneyFormatter = new Intl.NumberFormat("en-PK", {
     minimumFractionDigits: 2,
@@ -212,6 +213,29 @@ export default async function PurchaseDetailPage({
             </section>
 
             {purchase.status === "DRAFT" && canPost ? (
+                <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card p-5">
+                    <div>
+                        <h2 className="font-semibold">Draft Actions</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Edit this document before posting, or cancel it if the purchase will not proceed.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Link
+                            href={`/purchases/${purchase.id}/edit`}
+                            className="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
+                        >
+                            Edit Draft
+                        </Link>
+                        <CancelPurchaseDraftForm
+                            purchaseId={purchase.id}
+                            documentNo={purchase.documentNo}
+                        />
+                    </div>
+                </section>
+            ) : null}
+
+            {purchase.status === "DRAFT" && canPost ? (
                 <ReceivePurchaseForm
                     purchaseId={purchase.id}
                     documentNo={purchase.documentNo}
@@ -370,9 +394,11 @@ export default async function PurchaseDetailPage({
             ) : null}
 
             <p className="text-xs text-muted-foreground">
-                Posted purchase history is retained. Corrections, supplier returns,
-                and reversals should use dedicated workflows rather than directly
-                editing inventory or ledger rows.
+                {purchase.status === "CANCELLED"
+                    ? "This purchase draft was cancelled. Its document and items are retained for audit and cannot be edited or posted."
+                    : purchase.status === "POSTED"
+                        ? "Posted purchase history is retained. Corrections, supplier returns, and reversals should use dedicated workflows rather than directly editing inventory or ledger rows."
+                        : "Staff with update permission can edit or cancel this draft before posting. Posting is the step that changes stock and accounting balances."}
             </p>
         </main>
     );
