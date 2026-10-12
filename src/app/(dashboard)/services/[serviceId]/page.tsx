@@ -1,0 +1,27 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import { requirePermission } from "@/lib/authorization";
+import { getServiceDetailForShop } from "@/lib/shop-services/service-transactions";
+import ServiceStatusPanel from "./service-status-panel";
+
+const pkr = (value: string | number) => `Rs ${new Intl.NumberFormat("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value))}`;
+const statusClass = (status: string) => status === "COMPLETED" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" : status === "FAILED" || status === "CANCELLED" ? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300" : status === "PROCESSING" ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300" : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300";
+
+export default async function ServiceDetailPage({ params }: { params: Promise<{ serviceId: string }> }) {
+  const shop = await requirePermission("products.view");
+  const { serviceId } = await params;
+  const details = await getServiceDetailForShop(shop.shopId, serviceId);
+  if (!details) notFound();
+  const { service, accounts, paymentRows } = details;
+  return <main className="space-y-6 p-4 md:p-6">
+    <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-sm text-muted-foreground">Shop services / transaction</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">{service.documentNo}</h1><p className="mt-2 text-sm text-muted-foreground">{service.typeName} · {service.category.replaceAll("_", " ")}</p></div><Link href="/services" className="inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-muted">Back to services</Link></header>
+    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><div className="rounded-xl border bg-card p-4"><p className="text-sm text-muted-foreground">Principal</p><p className="mt-2 text-xl font-semibold tabular-nums">{pkr(service.principalAmount)}</p></div><div className="rounded-xl border bg-card p-4"><p className="text-sm text-muted-foreground">Service fee</p><p className="mt-2 text-xl font-semibold tabular-nums">{pkr(service.serviceFee)}</p></div><div className="rounded-xl border bg-card p-4"><p className="text-sm text-muted-foreground">Total transaction</p><p className="mt-2 text-xl font-semibold tabular-nums">{pkr(service.totalAmount)}</p></div><div className="rounded-xl border bg-card p-4"><p className="text-sm text-muted-foreground">Status / payment</p><div className="mt-2 flex flex-wrap gap-2"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${statusClass(service.serviceStatus)}`}>{service.serviceStatus}</span><span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-medium">Payment: {service.paymentStatus}</span></div></div></section>
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"><section className="space-y-4 rounded-xl border bg-card p-4 md:p-5"><h2 className="text-lg font-semibold">Transaction details</h2><dl className="grid gap-3 sm:grid-cols-2">{[
+      ["Service type", service.typeName], ["Provider money direction", service.direction], ["Customer", service.customerName ?? "Walk-in / not recorded"], ["Provider account", service.providerAccountName ?? "Not applicable"], ["Created", service.createdAt.toLocaleString("en-PK", { timeZone: "Asia/Karachi" })], ["Completed", service.completedAt ? service.completedAt.toLocaleString("en-PK", { timeZone: "Asia/Karachi" }) : "Not completed"], ["External reference", service.externalReference ?? "—"], ["Notes", service.notes ?? "—"], ["Failure / cancellation reason", service.failureReason ?? "—"],
+    ].map(([label, value]) => <div key={label} className="min-w-0 rounded-lg bg-muted/30 p-3"><dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</dt><dd className="mt-1 break-words text-sm font-medium">{value}</dd></div>)}</dl><div className="flex flex-wrap gap-3 border-t pt-4"><Link href="/settings/finance/ledger" className="text-sm font-medium underline underline-offset-4">View financial ledger</Link><Link href="/settings/finance/accounts" className="text-sm font-medium underline underline-offset-4">View financial accounts</Link></div></section>
+    <div className="space-y-6"><section className="overflow-hidden rounded-xl border bg-card"><div className="border-b px-4 py-4"><h2 className="font-semibold">Recorded account movements</h2><p className="mt-1 text-sm text-muted-foreground">These rows identify accounts involved in the service. Use the financial ledger for the posted debit/credit direction.</p></div>{paymentRows.length === 0 ? <p className="p-4 text-sm text-muted-foreground">No account movement rows.</p> : <div className="divide-y">{paymentRows.map((row) => <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 p-4"><div><p className="font-medium">{row.accountName}</p><p className="mt-1 text-xs text-muted-foreground">Recorded {row.paidAt.toLocaleString("en-PK", { timeZone: "Asia/Karachi" })}</p></div><p className="font-semibold tabular-nums">{pkr(row.amount)}</p></div>)}</div>}</section>
+      <ServiceStatusPanel serviceId={service.id} documentNo={service.documentNo} direction={service.direction} serviceStatus={service.serviceStatus} externalReference={service.externalReference} accounts={accounts} />
+    </div></div>
+  </main>;
+}
