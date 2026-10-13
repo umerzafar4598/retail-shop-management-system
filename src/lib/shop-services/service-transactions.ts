@@ -4,6 +4,7 @@ import Decimal from "decimal.js";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
+import { getDefaultCashDrawerForShop } from "@/lib/cash/cash-drawer-settings";
 import {
   auditLogs,
   customers,
@@ -271,7 +272,8 @@ export async function getServiceWorkspaceForShop(shopId: string) {
     : [];
   const parents = new Set(parentRows.map((row) => row.parentId).filter((id): id is string => id !== null));
   const accounts = candidateAccounts.filter((account) => !parents.has(account.ledgerAccountId)).map(({ ledgerAccountId: _ledgerAccountId, ...account }) => account);
-  return { types, customers: customerRows, accounts, recentTransactions };
+  const defaultServiceCashDrawerId = await getDefaultCashDrawerForShop(shopId, "SERVICES");
+  return { types, customers: customerRows, accounts, recentTransactions, defaultServiceCashDrawerId };
 }
 
 export async function getServiceDetailForShop(shopId: string, serviceId: string) {
@@ -317,7 +319,8 @@ export async function getServiceDetailForShop(shopId: string, serviceId: string)
     : [];
   const parents = new Set(parentRows.map((row) => row.parentId).filter((id): id is string => id !== null));
   const accounts = candidateAccounts.filter((account) => !parents.has(account.ledgerAccountId)).map(({ ledgerAccountId: _ledgerAccountId, ...account }) => account);
-  return { service, accounts, paymentRows };
+  const defaultServiceCashDrawerId = await getDefaultCashDrawerForShop(shopId, "SERVICES");
+  return { service, accounts, paymentRows, defaultServiceCashDrawerId };
 }
 
 export async function createServiceTransactionForShop(input: {

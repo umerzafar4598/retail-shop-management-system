@@ -11,13 +11,13 @@ type Account = { id: string; name: string; kind: string; provider: string };
 const initialState: ServiceActionState = { status: "idle", message: "" };
 const money = (value: number) => `Rs ${Number.isFinite(value) ? value.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"}`;
 
-export default function ServiceCreateForm({ types, customers, accounts }: { types: ServiceType[]; customers: Customer[]; accounts: Account[] }) {
+export default function ServiceCreateForm({ types, customers, accounts, defaultServiceCashDrawerId }: { types: ServiceType[]; customers: Customer[]; accounts: Account[]; defaultServiceCashDrawerId: string | null }) {
   const [state, formAction, pending] = useActionState(createServiceTransactionAction, initialState);
   const [serviceTypeId, setServiceTypeId] = useState(types[0]?.id ?? "");
   const [principalAmount, setPrincipalAmount] = useState("0.00");
   const [serviceFee, setServiceFee] = useState(types[0]?.defaultFee ?? "0.00");
   const [providerAccountId, setProviderAccountId] = useState("");
-  const [settlementAccountId, setSettlementAccountId] = useState("");
+  const [settlementAccountId, setSettlementAccountId] = useState(defaultServiceCashDrawerId ?? "");
   const selectedType = useMemo(() => types.find((type) => type.id === serviceTypeId) ?? null, [types, serviceTypeId]);
   const direction = selectedType?.providerMoneyDirection ?? "NONE";
   const numericPrincipal = Number.parseFloat(principalAmount) || 0;

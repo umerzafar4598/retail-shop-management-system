@@ -205,6 +205,106 @@ async function getNextLedgerCode(
     return nextCode;
 }
 
+/**
+ * Creates/loads a dedicated non-postable parent for additional cash drawers.
+ * The existing Main Cash Drawer ledger account is deliberately not used as a
+ * parent, because it already contains historical postings and must remain a
+ * postable leaf account.
+ */
+async function getOrCreateCashDrawersParent(
+    tx: DbExecutor,
+    shopId: string,
+): Promise<ParentLedger> {
+    // Serialize first-time creation for this shop.
+    await tx.execute(sql`
+      SELECT pg_advisory_xact_lock(
+        hashtext(${shopId}),
+        hashtext('CASH_DRAWERS_PARENT')
+      )
+    `);
+
+    const existingResult = await tx.execute<ParentLedger & { active: boolean }>(sql`
+      SELECT id, code, name, active
+      FROM ledger_accounts
+      WHERE shop_id = ${shopId}
+        AND system_key = 'CASH_DRAWERS'
+        AND is_system = true
+      LIMIT 1
+      FOR UPDATE
+    `);
+
+    const existing = existingResult.rows[0];
+    if (existing) {
+        if (!existing.active) {
+            throw new Error(
+                'The Cash Drawers ledger parent is inactive. Ask an administrator to review the chart of accounts.',
+            );
+        }
+
+        return { id: existing.id, code: existing.code, name: existing.name };
+    }
+
+    // Reserve a short, unused range for the parent and its first ten child
+    // accounts. Codes 1050-1099 are preferred so the group sits near the
+    // existing 1000-series cash account without colliding with the 1100-series
+    // digital-wallet parent.
+    const codeResult = await tx.execute<{ code: string }>(sql`
+      SELECT candidates.code::text AS code
+      FROM generate_series(1001, 1089) AS candidates(code)
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM ledger_accounts existing
+        WHERE existing.shop_id = ${shopId}
+          AND CASE
+            WHEN existing.code ~ '^[0-9]+$' THEN existing.code::integer
+            ELSE NULL
+          END BETWEEN candidates.code AND candidates.code + 10
+      )
+      ORDER BY ABS(candidates.code - 1050), candidates.code
+      LIMIT 1
+    `);
+
+    const code = codeResult.rows[0]?.code;
+    if (!code) {
+        throw new Error(
+            'No available ledger-code range exists for additional cash drawers. Review the chart of accounts before creating another drawer.',
+        );
+    }
+
+    const createdResult = await tx.execute<ParentLedger>(sql`
+      INSERT INTO ledger_accounts (
+        shop_id,
+        parent_id,
+        code,
+        name,
+        account_type,
+        normal_balance,
+        system_key,
+        is_system,
+        active
+      )
+      VALUES (
+        ${shopId},
+        NULL,
+        ${code},
+        'Additional Cash Drawers',
+        'ASSET',
+        'DEBIT',
+        'CASH_DRAWERS',
+        true,
+        true
+      )
+      RETURNING id, code, name
+    `);
+
+    const created = createdResult.rows[0];
+    if (!created) {
+        throw new Error('Failed to create the Cash Drawers ledger parent.');
+    }
+
+    return created;
+}
+
 export async function listFinancialAccounts(): Promise<
     FinancialAccount[]
 > {
@@ -285,12 +385,6 @@ export async function createFinancialAccount(
         );
     }
 
-    if (input.kind === "CASH") {
-        throw new Error(
-            "Additional cash drawers are not supported yet.",
-        );
-    }
-
     const result = await db.transaction(async (tx) => {
         const duplicateName = await tx.execute<{ id: string }>(sql`
       SELECT id
@@ -324,26 +418,29 @@ export async function createFinancialAccount(
             }
         }
 
-        const parentSystemKey =
-            PARENT_SYSTEM_KEYS[
-            input.kind as Exclude<FinancialAccountKind, "CASH">
-            ];
+        let parent: ParentLedger | undefined;
 
-        const parentResult = await tx.execute<ParentLedger>(sql`
-      SELECT
-        id,
-        code,
-        name
-      FROM ledger_accounts
-      WHERE shop_id = ${context.shopId}
-        AND system_key = ${parentSystemKey}
-        AND is_system = true
-        AND active = true
-      LIMIT 1
-      FOR UPDATE
-    `);
+        if (input.kind === "CASH") {
+            parent = await getOrCreateCashDrawersParent(tx, context.shopId);
+        } else {
+            const parentSystemKey = PARENT_SYSTEM_KEYS[input.kind];
 
-        const parent = parentResult.rows[0];
+            const parentResult = await tx.execute<ParentLedger>(sql`
+          SELECT
+            id,
+            code,
+            name
+          FROM ledger_accounts
+          WHERE shop_id = ${context.shopId}
+            AND system_key = ${parentSystemKey}
+            AND is_system = true
+            AND active = true
+          LIMIT 1
+          FOR UPDATE
+        `);
+
+            parent = parentResult.rows[0];
+        }
 
         if (!parent) {
             throw new Error(
@@ -463,9 +560,9 @@ export async function updateFinancialAccount(
             throw new Error("Financial account was not found.");
         }
 
-        if (account.kind === "CASH" || account.isSystem) {
+        if (account.isSystem) {
             throw new Error(
-                "The system cash account cannot be edited here.",
+                "System financial accounts cannot be edited here.",
             );
         }
 
@@ -589,13 +686,45 @@ export async function setFinancialAccountStatus(
             );
         }
 
-        if (account.kind === "CASH" || account.isSystem) {
+        if (account.isSystem) {
             throw new Error(
-                "The system cash account cannot be deactivated.",
+                "System financial accounts cannot be deactivated.",
             );
         }
 
-        if (!isActive && account.balance !== "0") {
+        if (!isActive && account.kind === "CASH") {
+            const defaultAssignment = await tx.execute<{ purpose: string }>(sql`
+          SELECT purpose
+          FROM cash_drawer_defaults
+          WHERE shop_id = ${context.shopId}
+            AND financial_account_id = ${account.id}
+          LIMIT 1
+        `);
+
+            if (defaultAssignment.rows[0]) {
+                const purpose = defaultAssignment.rows[0].purpose.toLowerCase();
+                throw new Error(
+                    `This account is assigned as the ${purpose} default cash drawer. Change the drawer assignment before deactivating it.`,
+                );
+            }
+
+            const openSession = await tx.execute<{ id: string }>(sql`
+          SELECT id
+          FROM cash_sessions
+          WHERE shop_id = ${context.shopId}
+            AND financial_account_id = ${account.id}
+            AND status = 'OPEN'
+          LIMIT 1
+        `);
+
+            if (openSession.rows[0]) {
+                throw new Error(
+                    "Close the cash session before deactivating this drawer.",
+                );
+            }
+        }
+
+        if (!isActive && Number(account.balance) !== 0) {
             throw new Error(
                 "The account must have a zero balance before it can be deactivated.",
             );

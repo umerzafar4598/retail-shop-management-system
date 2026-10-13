@@ -39,17 +39,21 @@ export default function PosCheckoutForm({
   devices,
   paymentAccounts,
   customers,
+  defaultRetailCashDrawerId,
 }: {
   catalog: CatalogItem[];
   devices: DeviceOption[];
   paymentAccounts: PaymentAccount[];
   customers: CustomerOption[];
+  defaultRetailCashDrawerId: string | null;
 }) {
   const [state, formAction, pending] = useActionState(completePosSaleAction, initialState);
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [selectedDevices, setSelectedDevices] = useState<Record<string, string>>({});
-  const defaultPaymentAccountId = paymentAccounts[0]?.id ?? "";
+  const defaultPaymentAccountId = (defaultRetailCashDrawerId && paymentAccounts.some((account) => account.id === defaultRetailCashDrawerId)
+    ? defaultRetailCashDrawerId
+    : paymentAccounts.find((account) => account.kind === "CASH")?.id ?? paymentAccounts[0]?.id) ?? "";
   const [discountAmount, setDiscountAmount] = useState("0.00");
   const [customerId, setCustomerId] = useState("");
   const [allowCreditBalance, setAllowCreditBalance] = useState(false);

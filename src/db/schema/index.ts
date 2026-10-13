@@ -11,6 +11,7 @@ export * from "./sales";
 export * from "./returns";
 export * from "./services";
 export * from "./cash";
+export * from "./cash-drawer-defaults";
 export * from "./expenses";
 export * from "./document-sequences";
 export * from "./audit";

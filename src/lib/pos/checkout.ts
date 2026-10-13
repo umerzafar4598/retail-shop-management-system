@@ -4,6 +4,7 @@ import Decimal from "decimal.js";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
+import { getDefaultCashDrawerForShop } from "@/lib/cash/cash-drawer-settings";
 import {
   auditLogs,
   customers,
@@ -270,7 +271,8 @@ export async function getPosScreenDataForShop(shopId: string) {
     .where(and(eq(customers.shopId, shopId), eq(customers.active, true)))
     .orderBy(asc(customers.name));
 
-  return { catalog, devices, paymentAccounts, customers: customerOptions };
+  const defaultRetailCashDrawerId = await getDefaultCashDrawerForShop(shopId, "RETAIL");
+  return { catalog, devices, paymentAccounts, customers: customerOptions, defaultRetailCashDrawerId };
 }
 
 export async function completeSaleForShop(input: {

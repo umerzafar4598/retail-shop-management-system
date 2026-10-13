@@ -21,6 +21,7 @@ export default async function PosPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link href="/settings/cash-drawers" className="inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-muted">Cash drawer defaults</Link>
           <Link href="/customers" className="inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-muted">Customers</Link>
           <Link href="/sales" className="inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-muted">Sales history</Link>
         </div>
@@ -55,7 +56,7 @@ export default async function PosPage() {
               <Link className="ml-1 font-medium underline underline-offset-4" href="/settings/finance/accounts">Configure financial accounts</Link>
             </section>
           ) : null}
-          <PosCheckoutForm catalog={data.catalog} devices={data.devices} paymentAccounts={data.paymentAccounts} customers={data.customers} />
+          <PosCheckoutForm catalog={data.catalog} devices={data.devices} paymentAccounts={data.paymentAccounts} customers={data.customers} defaultRetailCashDrawerId={data.defaultRetailCashDrawerId} />
         </>
       )}
     </main>

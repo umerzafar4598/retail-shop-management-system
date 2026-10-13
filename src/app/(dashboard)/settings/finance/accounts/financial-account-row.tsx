@@ -53,9 +53,10 @@ export function FinancialAccountRow({
     );
     const [isPending, startTransition] = useTransition();
 
-    const isSystem =
-        account.ledgerAccountIsSystem ||
-        account.kind === "CASH";
+    // Only the linked system ledger account is immutable. Additional CASH
+    // accounts have ordinary leaf ledger accounts and may be renamed or
+    // deactivated when balance/default/session safeguards allow it.
+    const isSystem = account.ledgerAccountIsSystem;
 
     function handleStatusChange() {
         setMessage(null);

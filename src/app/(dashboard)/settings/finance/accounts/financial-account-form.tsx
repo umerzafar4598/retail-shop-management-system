@@ -49,14 +49,8 @@ export function FinancialAccountForm({
 
     const [name, setName] = useState(account?.name ?? "");
 
-    const [kind, setKind] = useState<
-        Exclude<FinancialAccountKind, "CASH">
-    >(
-        account?.kind === "BANK" ||
-            account?.kind === "DIGITAL_WALLET" ||
-            account?.kind === "OTHER"
-            ? account.kind
-            : "DIGITAL_WALLET",
+    const [kind, setKind] = useState<FinancialAccountKind>(
+        account?.kind ?? "DIGITAL_WALLET",
     );
 
     const [provider, setProvider] = useState(
@@ -81,21 +75,13 @@ export function FinancialAccountForm({
 
         setName(account.name);
 
-        if (
-            account.kind === "DIGITAL_WALLET" ||
-            account.kind === "BANK" ||
-            account.kind === "OTHER"
-        ) {
-            setKind(account.kind);
-        }
+        setKind(account.kind);
 
         setProvider(account.provider);
         setIdentifier(account.identifier ?? "");
     }, [account]);
 
-    function handleKindChange(
-        nextKind: Exclude<FinancialAccountKind, "CASH">,
-    ) {
+    function handleKindChange(nextKind: FinancialAccountKind) {
         setKind(nextKind);
 
         if (!isEdit) {
@@ -179,7 +165,7 @@ export function FinancialAccountForm({
                 <p className="mt-1 text-sm text-muted-foreground">
                     {isEdit
                         ? "Update the account information. Its accounting history remains unchanged."
-                        : "Create a shop-specific money account such as Easypaisa, JazzCash, or a bank account."}
+                        : "Create a shop-specific money account such as a cash drawer, Easypaisa, JazzCash, or a bank account."}
                 </p>
             </div>
 
@@ -198,7 +184,7 @@ export function FinancialAccountForm({
                         onChange={(event) =>
                             setName(event.target.value)
                         }
-                        placeholder="Easypaisa 676"
+                        placeholder={kind === "CASH" ? "Services Cash Drawer" : "Easypaisa 676"}
                         maxLength={100}
                         disabled={isPending}
                         className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
@@ -219,10 +205,7 @@ export function FinancialAccountForm({
                             value={kind}
                             onChange={(event) =>
                                 handleKindChange(
-                                    event.target.value as Exclude<
-                                        FinancialAccountKind,
-                                        "CASH"
-                                    >,
+                                    event.target.value as FinancialAccountKind,
                                 )
                             }
                             disabled={isPending}
@@ -257,11 +240,13 @@ export function FinancialAccountForm({
                             setProvider(event.target.value)
                         }
                         placeholder={
-                            kind === "BANK"
-                                ? "HBL"
-                                : kind === "DIGITAL_WALLET"
-                                    ? "Easypaisa"
-                                    : "Other"
+                            kind === "CASH"
+                                ? "INTERNAL"
+                                : kind === "BANK"
+                                    ? "HBL"
+                                    : kind === "DIGITAL_WALLET"
+                                        ? "Easypaisa"
+                                        : "Other"
                         }
                         maxLength={100}
                         disabled={isPending}
@@ -275,7 +260,7 @@ export function FinancialAccountForm({
                         className="text-sm font-medium"
                     >
                         Identifier
-                        {kind === "OTHER" ? (
+                        {kind === "OTHER" || kind === "CASH" ? (
                             <span className="ml-1 text-muted-foreground">
                                 (optional)
                             </span>
