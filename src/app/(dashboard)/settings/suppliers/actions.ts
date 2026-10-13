@@ -8,6 +8,7 @@ import {
     SupplierInputError,
 } from "@/lib/suppliers/suppliers";
 import { requirePermission } from "@/lib/authorization";
+import { requireSession } from "@/lib/session";
 
 export type SupplierActionState = {
     status: "idle" | "success" | "error";
@@ -27,10 +28,11 @@ export async function createSupplierAction(
     _previousState: SupplierActionState,
     formData: FormData,
 ): Promise<SupplierActionState> {
-    const shop = await requirePermission("products.create");
+    const shop = await requirePermission("suppliers.create");
+    const session = await requireSession();
 
     try {
-        await createSupplierForShop(shop.shopId, {
+        await createSupplierForShop(shop.shopId, session.user.id, {
             name: String(formData.get("name") ?? ""),
             phone: String(formData.get("phone") ?? ""),
             address: String(formData.get("address") ?? ""),
@@ -55,7 +57,8 @@ export async function setSupplierStatusAction(
     _previousState: SupplierActionState,
     formData: FormData,
 ): Promise<SupplierActionState> {
-    const shop = await requirePermission("products.update");
+    const shop = await requirePermission("suppliers.update");
+    const session = await requireSession();
 
     const supplierId = String(formData.get("supplierId") ?? "");
     const activeValue = String(formData.get("active") ?? "");
@@ -72,6 +75,7 @@ export async function setSupplierStatusAction(
     try {
         await setSupplierActiveForShop(
             shop.shopId,
+            session.user.id,
             supplierId,
             active,
         );

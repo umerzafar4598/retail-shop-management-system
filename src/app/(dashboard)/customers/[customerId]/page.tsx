@@ -9,7 +9,7 @@ const moneyFormatter = new Intl.NumberFormat("en-PK", { minimumFractionDigits: 2
 const formatPKR = (value: string | number) => `Rs ${moneyFormatter.format(Number(value))}`;
 
 export default async function CustomerDetailPage({ params }: { params: Promise<{ customerId: string }> }) {
-  const shop = await requirePermission("products.view");
+  const shop = await requirePermission("customers.view");
   const { customerId } = await params;
   const details = await getCustomerDetailsForShop(shop.shopId, customerId);
   if (!details) notFound();

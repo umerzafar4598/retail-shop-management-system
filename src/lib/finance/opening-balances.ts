@@ -4,6 +4,7 @@ import Decimal from "decimal.js";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
+import { auditLogs } from "@/db/schema";
 import { requirePermission } from "@/lib/authorization";
 import { getCurrentSession } from "@/lib/session";
 
@@ -294,6 +295,20 @@ export async function setOpeningBalance(
                     ],
                 },
             );
+
+        await tx.insert(auditLogs).values({
+            shopId: context.shopId,
+            actorUserId: session.user.id,
+            action: "OPENING_BALANCE_RECORDED",
+            entityType: "FINANCIAL_ACCOUNT",
+            entityId: account.id,
+            metadata: {
+                accountName: account.name,
+                accountKind: account.kind,
+                amount: amount.toFixed(2),
+                ledgerTransactionId: posted.transactionId,
+            },
+        });
 
         return posted;
     });

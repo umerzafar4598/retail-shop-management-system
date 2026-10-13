@@ -299,6 +299,33 @@ export async function createAccountTransferInTransaction(
             },
         );
 
+    await tx.execute(sql`
+      INSERT INTO audit_logs (
+        shop_id,
+        actor_user_id,
+        action,
+        entity_type,
+        entity_id,
+        metadata
+      )
+      VALUES (
+        ${context.shopId},
+        ${context.userId},
+        'ACCOUNT_TRANSFER_COMPLETED',
+        'ACCOUNT_TRANSFER',
+        ${transfer.id},
+        ${JSON.stringify({
+          documentNo,
+          sourceAccountId: source.id,
+          sourceAccountName: source.name,
+          destinationAccountId: destination.id,
+          destinationAccountName: destination.name,
+          amount: amount.toFixed(2),
+          ledgerTransactionId: ledgerTransaction.transactionId,
+        })}::jsonb
+      )
+    `);
+
     return {
         transferId: transfer.id,
         documentNo,

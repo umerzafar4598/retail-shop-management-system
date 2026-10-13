@@ -9,7 +9,7 @@ import { createSaleExchangeForShop, SaleExchangeError } from "@/lib/pos/exchange
 export type SaleExchangeActionState = { status: "idle" | "success" | "error"; message: string; replacementSaleId?: string; returnId?: string };
 
 export async function createSaleExchangeAction(_previousState: SaleExchangeActionState, formData: FormData): Promise<SaleExchangeActionState> {
-  const shop = await requirePermission("products.update");
+  const shop = await requirePermission("sales.exchange");
   const session = await requireSession();
   const getString = (key: string) => { const value = formData.get(key); return typeof value === "string" ? value : ""; };
   const originalSaleId = getString("originalSaleId");

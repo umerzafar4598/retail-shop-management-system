@@ -9,7 +9,7 @@ import { createSaleReturnForShop, SaleReturnError } from "@/lib/pos/returns";
 export type SaleReturnActionState = { status: "idle" | "success" | "error"; message: string };
 
 export async function createSaleReturnAction(_previousState: SaleReturnActionState, formData: FormData): Promise<SaleReturnActionState> {
-  const shop = await requirePermission("products.update");
+  const shop = await requirePermission("sales.return");
   const session = await requireSession();
   const getString = (key: string) => { const value = formData.get(key); return typeof value === "string" ? value : ""; };
   const saleId = getString("saleId");

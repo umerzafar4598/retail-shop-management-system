@@ -14,11 +14,11 @@ function getPakistanToday(): string {
 }
 
 export default async function ExpensesPage() {
-  const shop = await requirePermission("products.view");
+  const shop = await requirePermission("expenses.view");
   const session = await requireSession();
   const [data, canManage] = await Promise.all([
     getExpensePageData(shop.shopId),
-    hasPermission(session.user.id, shop.shopId, "products.update"),
+    hasPermission(session.user.id, shop.shopId, "expenses.create"),
   ]);
   const recentTotal = data.recentExpenses
     .filter((expense) => expense.status === "POSTED")

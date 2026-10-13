@@ -13,7 +13,7 @@ const read = (formData: FormData, key: string) => {
 };
 
 export async function reverseExpenseAction(_previous: ExpenseReversalActionState, formData: FormData): Promise<ExpenseReversalActionState> {
-  const shop = await requirePermission("products.update");
+  const shop = await requirePermission("expenses.reverse");
   const session = await requireSession();
   const expenseId = read(formData, "expenseId");
   const mode = read(formData, "mode");

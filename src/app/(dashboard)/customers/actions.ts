@@ -16,7 +16,7 @@ export async function createCustomerAction(
   _previousState: CustomerActionState,
   formData: FormData,
 ): Promise<CustomerActionState> {
-  const shop = await requirePermission("products.create");
+  const shop = await requirePermission("customers.create");
   const session = await requireSession();
   const getString = (key: string) => {
     const value = formData.get(key);

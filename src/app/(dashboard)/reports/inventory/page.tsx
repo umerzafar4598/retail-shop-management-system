@@ -1,13 +1,13 @@
 import Link from "next/link";
 
-import { requirePermission } from "@/lib/authorization";
+import { requireOwnerFinancialReportAccess } from "@/lib/authorization/owner-financial-reports";
 import { getInventoryReportForShop } from "@/lib/reports/management-reports";
 
 const moneyFormatter = new Intl.NumberFormat("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function formatPKR(value: string | number) { return `Rs ${moneyFormatter.format(Number(value ?? 0))}`; }
 
 export default async function InventoryReportPage() {
-  const shop = await requirePermission("products.view");
+  const shop = await requireOwnerFinancialReportAccess();
   const rows = await getInventoryReportForShop(shop.shopId);
   const totalValue = rows.reduce((sum, row) => sum + Number(row.inventoryValue), 0);
   const totalUnits = rows.reduce((sum, row) => sum + row.quantity, 0);

@@ -5,7 +5,7 @@ import { getPosScreenDataForShop } from "@/lib/pos/checkout";
 import PosCheckoutForm from "./pos-checkout-form";
 
 export default async function PosPage() {
-  const shop = await requirePermission("products.update");
+  const shop = await requirePermission("sales.create");
   const data = await getPosScreenDataForShop(shop.shopId);
   const inStockVariantCount = data.catalog.filter((item) => item.stockQuantity > 0).length;
 

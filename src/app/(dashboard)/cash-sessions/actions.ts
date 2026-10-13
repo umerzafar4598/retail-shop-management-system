@@ -26,7 +26,7 @@ function revalidateCashPages() {
 }
 
 export async function openCashSessionAction(_previous: CashSessionActionState, formData: FormData): Promise<CashSessionActionState> {
-  const shop = await requirePermission("products.update");
+  const shop = await requirePermission("cash_sessions.open");
   const session = await requireSession();
   try {
     const result = await openCashSessionForShop({
@@ -45,7 +45,7 @@ export async function openCashSessionAction(_previous: CashSessionActionState, f
 }
 
 export async function closeCashSessionAction(_previous: CashSessionActionState, formData: FormData): Promise<CashSessionActionState> {
-  const shop = await requirePermission("products.update");
+  const shop = await requirePermission("cash_sessions.close");
   const session = await requireSession();
   try {
     const result = await closeCashSessionForShop({
@@ -66,7 +66,7 @@ export async function closeCashSessionAction(_previous: CashSessionActionState, 
 }
 
 export async function acknowledgeCashDiscrepancyAction(_previous: CashSessionActionState, formData: FormData): Promise<CashSessionActionState> {
-  const shop = await requirePermission("products.update");
+  const shop = await requirePermission("cash_sessions.reconcile");
   const session = await requireSession();
   try {
     const result = await acknowledgeCashDiscrepancyForShop({

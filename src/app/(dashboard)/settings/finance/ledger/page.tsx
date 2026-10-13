@@ -91,110 +91,110 @@ export default async function LedgerPage() {
                     calculated from ledger entries.
                 </p>
             </div>
+            {context.roleName === "Owner" &&
+                <section className="space-y-3">
+                    <div>
+                        <h2 className="text-lg font-semibold">
+                            Chart of Accounts
+                        </h2>
 
-            <section className="space-y-3">
-                <div>
-                    <h2 className="text-lg font-semibold">
-                        Chart of Accounts
-                    </h2>
-
-                    <p className="text-sm text-muted-foreground">
-                        System and financial ledger accounts.
-                    </p>
-                </div>
-
-                <div className="overflow-hidden rounded-xl border">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="border-b bg-muted/40">
-                                <tr>
-                                    <th className="px-4 py-3 text-left font-medium">
-                                        Code
-                                    </th>
-
-                                    <th className="px-4 py-3 text-left font-medium">
-                                        Account
-                                    </th>
-
-                                    <th className="px-4 py-3 text-left font-medium">
-                                        Type
-                                    </th>
-
-                                    <th className="px-4 py-3 text-left font-medium">
-                                        Normal Balance
-                                    </th>
-
-                                    <th className="px-4 py-3 text-right font-medium">
-                                        Balance
-                                    </th>
-
-                                    <th className="px-4 py-3 text-left font-medium">
-                                        Status
-                                    </th>
-                                </tr>
-                            </thead>
-
-                            <tbody>
-                                {accounts.map((account) => (
-                                    <tr
-                                        key={account.id}
-                                        className="border-b last:border-b-0"
-                                    >
-                                        <td className="whitespace-nowrap px-4 py-3 font-mono text-xs">
-                                            {account.code}
-                                        </td>
-
-                                        <td
-                                            className={`px-4 py-3 font-medium ${getIndentClass(
-                                                account.parentId,
-                                            )}`}
-                                        >
-                                            {account.parentId ? "└ " : ""}
-                                            {account.name}
-
-                                            {account.isSystem ? (
-                                                <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs font-normal">
-                                                    System
-                                                </span>
-                                            ) : null}
-                                        </td>
-
-                                        <td className="px-4 py-3 text-muted-foreground">
-                                            {formatAccountType(
-                                                account.accountType,
-                                            )}
-                                        </td>
-
-                                        <td className="px-4 py-3 text-muted-foreground">
-                                            {account.normalBalance}
-                                        </td>
-
-                                        <td className="px-4 py-3 text-right font-medium">
-                                            {formatAmount(
-                                                account.balance,
-                                            )}
-                                        </td>
-
-                                        <td className="px-4 py-3">
-                                            <span
-                                                className={`rounded-full px-2 py-0.5 text-xs ${account.active
-                                                    ? "bg-muted"
-                                                    : "bg-destructive/10 text-destructive"
-                                                    }`}
-                                            >
-                                                {account.active
-                                                    ? "Active"
-                                                    : "Inactive"}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        <p className="text-sm text-muted-foreground">
+                            System and financial ledger accounts.
+                        </p>
                     </div>
-                </div>
-            </section>
 
+                    <div className="overflow-hidden rounded-xl border">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="border-b bg-muted/40">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left font-medium">
+                                            Code
+                                        </th>
+
+                                        <th className="px-4 py-3 text-left font-medium">
+                                            Account
+                                        </th>
+
+                                        <th className="px-4 py-3 text-left font-medium">
+                                            Type
+                                        </th>
+
+                                        <th className="px-4 py-3 text-left font-medium">
+                                            Normal Balance
+                                        </th>
+
+                                        <th className="px-4 py-3 text-right font-medium">
+                                            Balance
+                                        </th>
+
+                                        <th className="px-4 py-3 text-left font-medium">
+                                            Status
+                                        </th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    {accounts.map((account) => (
+                                        <tr
+                                            key={account.id}
+                                            className="border-b last:border-b-0"
+                                        >
+                                            <td className="whitespace-nowrap px-4 py-3 font-mono text-xs">
+                                                {account.code}
+                                            </td>
+
+                                            <td
+                                                className={`px-4 py-3 font-medium ${getIndentClass(
+                                                    account.parentId,
+                                                )}`}
+                                            >
+                                                {account.parentId ? "└ " : ""}
+                                                {account.name}
+
+                                                {account.isSystem ? (
+                                                    <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs font-normal">
+                                                        System
+                                                    </span>
+                                                ) : null}
+                                            </td>
+
+                                            <td className="px-4 py-3 text-muted-foreground">
+                                                {formatAccountType(
+                                                    account.accountType,
+                                                )}
+                                            </td>
+
+                                            <td className="px-4 py-3 text-muted-foreground">
+                                                {account.normalBalance}
+                                            </td>
+
+                                            <td className="px-4 py-3 text-right font-medium">
+                                                {formatAmount(
+                                                    account.balance,
+                                                )}
+                                            </td>
+
+                                            <td className="px-4 py-3">
+                                                <span
+                                                    className={`rounded-full px-2 py-0.5 text-xs ${account.active
+                                                        ? "bg-muted"
+                                                        : "bg-destructive/10 text-destructive"
+                                                        }`}
+                                                >
+                                                    {account.active
+                                                        ? "Active"
+                                                        : "Inactive"}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            }
             <section className="space-y-4">
                 <div>
                     <h2 className="text-lg font-semibold">

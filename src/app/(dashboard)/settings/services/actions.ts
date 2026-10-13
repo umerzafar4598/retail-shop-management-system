@@ -10,7 +10,7 @@ export type ServiceTypeActionState = { status: "idle" | "success" | "error"; mes
 const read = (formData: FormData, key: string) => { const value = formData.get(key); return typeof value === "string" ? value : ""; };
 
 export async function createServiceTypeAction(_previous: ServiceTypeActionState, formData: FormData): Promise<ServiceTypeActionState> {
-  const shop = await requirePermission("products.update");
+  const shop = await requirePermission("services.manage_types");
   const session = await requireSession();
   try {
     await createServiceTypeForShop({
@@ -33,7 +33,7 @@ export async function createServiceTypeAction(_previous: ServiceTypeActionState,
 }
 
 export async function updateServiceTypeAction(_previous: ServiceTypeActionState, formData: FormData): Promise<ServiceTypeActionState> {
-  const shop = await requirePermission("products.update");
+  const shop = await requirePermission("services.manage_types");
   const session = await requireSession();
   try {
     const activeValue = read(formData, "active");

@@ -34,16 +34,15 @@ export default async function PurchaseDetailPage({
     params: Promise<{ purchaseId: string }>;
 }) {
     const { purchaseId } = await params;
-    const shop = await requirePermission("products.view");
+    const shop = await requirePermission("purchases.view");
     const session = await requireSession();
 
-    const [details, canPost] = await Promise.all([
+    const [details, canEditDraft, canCancelDraft, canPost, canRecordPayment] = await Promise.all([
         getPurchaseReceivingDetailsForShop(shop.shopId, purchaseId),
-        hasPermission(
-            session.user.id,
-            shop.shopId,
-            "products.update",
-        ),
+        hasPermission(session.user.id, shop.shopId, "purchases.edit_draft"),
+        hasPermission(session.user.id, shop.shopId, "purchases.cancel_draft"),
+        hasPermission(session.user.id, shop.shopId, "purchases.post"),
+        hasPermission(session.user.id, shop.shopId, "purchases.record_payment"),
     ]);
 
     if (!details) notFound();
@@ -212,7 +211,7 @@ export default async function PurchaseDetailPage({
                 ) : null}
             </section>
 
-            {purchase.status === "DRAFT" && canPost ? (
+            {purchase.status === "DRAFT" && (canEditDraft || canCancelDraft) ? (
                 <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card p-5">
                     <div>
                         <h2 className="font-semibold">Draft Actions</h2>
@@ -221,16 +220,16 @@ export default async function PurchaseDetailPage({
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
-                        <Link
+                        {canEditDraft ? <Link
                             href={`/purchases/${purchase.id}/edit`}
                             className="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
                         >
                             Edit Draft
-                        </Link>
-                        <CancelPurchaseDraftForm
+                        </Link> : null}
+                        {canCancelDraft ? <CancelPurchaseDraftForm
                             purchaseId={purchase.id}
                             documentNo={purchase.documentNo}
-                        />
+                        /> : null}
                     </div>
                 </section>
             ) : null}
@@ -382,7 +381,7 @@ export default async function PurchaseDetailPage({
                         </div>
                     </section>
 
-                    {canPost && new Decimal(outstandingAmount).greaterThan(0) ? (
+                    {canRecordPayment && new Decimal(outstandingAmount).greaterThan(0) ? (
                         <SupplierPaymentForm
                             purchaseId={purchase.id}
                             documentNo={purchase.documentNo}
@@ -398,7 +397,7 @@ export default async function PurchaseDetailPage({
                     ? "This purchase draft was cancelled. Its document and items are retained for audit and cannot be edited or posted."
                     : purchase.status === "POSTED"
                         ? "Posted purchase history is retained. Corrections, supplier returns, and reversals should use dedicated workflows rather than directly editing inventory or ledger rows."
-                        : "Staff with update permission can edit or cancel this draft before posting. Posting is the step that changes stock and accounting balances."}
+                        : "Staff need the appropriate draft-edit, draft-cancel, or posting permission to act on this document. Posting is the step that changes stock and accounting balances."}
             </p>
         </main>
     );

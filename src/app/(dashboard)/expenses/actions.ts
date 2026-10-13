@@ -13,7 +13,7 @@ const read = (formData: FormData, key: string) => {
 };
 
 export async function createExpenseAction(_previous: ExpenseActionState, formData: FormData): Promise<ExpenseActionState> {
-  const shop = await requirePermission("products.update");
+  const shop = await requirePermission("expenses.create");
   const session = await requireSession();
   try {
     const result = await createExpenseForShop({

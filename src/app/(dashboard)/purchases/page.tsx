@@ -48,7 +48,7 @@ function PurchaseStatusBadge({ status }: { status: string }) {
 }
 
 export default async function PurchasesPage() {
-    const shop = await requirePermission("products.view");
+    const shop = await requirePermission("purchases.view");
     const session = await requireSession();
 
     const [options, recentPurchases, canCreate] = await Promise.all([
@@ -57,7 +57,7 @@ export default async function PurchasesPage() {
         hasPermission(
             session.user.id,
             shop.shopId,
-            "products.create",
+            "purchases.create",
         ),
     ]);
 

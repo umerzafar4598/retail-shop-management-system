@@ -3,7 +3,9 @@ import "server-only";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
+import { auditLogs } from "@/db/schema";
 import { requirePermission } from "@/lib/authorization";
+import { getCurrentSession } from "@/lib/session";
 
 export const FINANCIAL_ACCOUNT_KINDS = [
     "CASH",
@@ -374,6 +376,8 @@ export async function createFinancialAccount(
     const context = await requirePermission(
         "financial_accounts.create",
     );
+    const session = await getCurrentSession();
+    if (!session) throw new Error("You must be authenticated.");
 
     const normalized = normalizeCreateInput(input);
 
@@ -520,6 +524,21 @@ export async function createFinancialAccount(
             );
         }
 
+        await tx.insert(auditLogs).values({
+            shopId: context.shopId,
+            actorUserId: session.user.id,
+            action: "FINANCIAL_ACCOUNT_CREATED",
+            entityType: "FINANCIAL_ACCOUNT",
+            entityId: financialAccount.id,
+            metadata: {
+                name: normalized.name,
+                kind: input.kind,
+                provider: normalized.provider,
+                identifierSuffix: normalized.identifier?.slice(-4) ?? null,
+                ledgerAccountId: ledgerAccount.id,
+            },
+        });
+
         return financialAccount;
     });
 
@@ -532,6 +551,8 @@ export async function updateFinancialAccount(
     const context = await requirePermission(
         "financial_accounts.update",
     );
+    const session = await getCurrentSession();
+    if (!session) throw new Error("You must be authenticated.");
 
     await db.transaction(async (tx) => {
         const accountResult = await tx.execute<{
@@ -539,11 +560,17 @@ export async function updateFinancialAccount(
             ledgerAccountId: string;
             kind: FinancialAccountKind;
             isSystem: boolean;
+            name: string;
+            provider: string;
+            identifier: string | null;
         }>(sql`
       SELECT
         fa.id,
         fa.ledger_account_id AS "ledgerAccountId",
         fa.kind,
+        fa.name,
+        fa.provider,
+        fa.identifier,
         la.is_system AS "isSystem"
       FROM financial_accounts fa
       INNER JOIN ledger_accounts la
@@ -625,6 +652,26 @@ export async function updateFinancialAccount(
         AND shop_id = ${context.shopId}
         AND is_system = false
     `);
+
+        await tx.insert(auditLogs).values({
+            shopId: context.shopId,
+            actorUserId: session.user.id,
+            action: "FINANCIAL_ACCOUNT_UPDATED",
+            entityType: "FINANCIAL_ACCOUNT",
+            entityId: account.id,
+            metadata: {
+                before: {
+                    name: account.name,
+                    provider: account.provider,
+                    identifierSuffix: account.identifier?.slice(-4) ?? null,
+                },
+                after: {
+                    name: normalized.name,
+                    provider: normalized.provider,
+                    identifierSuffix: normalized.identifier?.slice(-4) ?? null,
+                },
+            },
+        });
     });
 }
 
@@ -635,6 +682,8 @@ export async function setFinancialAccountStatus(
     const context = await requirePermission(
         "financial_accounts.deactivate",
     );
+    const session = await getCurrentSession();
+    if (!session) throw new Error("You must be authenticated.");
 
     await db.transaction(async (tx) => {
         const result = await tx.execute<{
@@ -643,11 +692,15 @@ export async function setFinancialAccountStatus(
             kind: FinancialAccountKind;
             balance: string;
             isSystem: boolean;
+            name: string;
+            isActive: boolean;
         }>(sql`
       SELECT
         fa.id,
         fa.ledger_account_id AS "ledgerAccountId",
         fa.kind,
+        fa.name,
+        fa.is_active AS "isActive",
 
         COALESCE(
           SUM(le.debit - le.credit),
@@ -673,6 +726,8 @@ export async function setFinancialAccountStatus(
         fa.id,
         fa.ledger_account_id,
         fa.kind,
+        fa.name,
+        fa.is_active,
         la.is_system
 
       LIMIT 1
@@ -748,5 +803,21 @@ export async function setFinancialAccountStatus(
         AND shop_id = ${context.shopId}
         AND is_system = false
     `);
+
+        if (account.isActive !== isActive) {
+            await tx.insert(auditLogs).values({
+                shopId: context.shopId,
+                actorUserId: session.user.id,
+                action: isActive ? "FINANCIAL_ACCOUNT_REACTIVATED" : "FINANCIAL_ACCOUNT_DEACTIVATED",
+                entityType: "FINANCIAL_ACCOUNT",
+                entityId: account.id,
+                metadata: {
+                    name: account.name,
+                    kind: account.kind,
+                    beforeActive: account.isActive,
+                    afterActive: isActive,
+                },
+            });
+        }
     });
 }

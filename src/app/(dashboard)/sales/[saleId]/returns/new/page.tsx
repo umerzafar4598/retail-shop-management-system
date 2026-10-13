@@ -10,9 +10,9 @@ const moneyFormatter = new Intl.NumberFormat("en-PK", { minimumFractionDigits: 2
 const formatPKR = (value: string | number) => `Rs ${moneyFormatter.format(Number(value))}`;
 
 export default async function NewSaleReturnPage({ params }: { params: Promise<{ saleId: string }> }) {
-  const shop = await requirePermission("products.view");
+  const shop = await requirePermission("sales.view");
   const session = await requireSession();
-  const canReturn = await hasPermission(session.user.id, shop.shopId, "products.update");
+  const canReturn = await hasPermission(session.user.id, shop.shopId, "sales.return");
   const { saleId } = await params;
   const details = await getSaleReturnScreenDataForShop(shop.shopId, saleId);
   if (!details) notFound();

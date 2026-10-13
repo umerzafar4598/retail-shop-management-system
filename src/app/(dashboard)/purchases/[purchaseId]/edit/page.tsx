@@ -28,7 +28,7 @@ export default async function EditPurchaseDraftPage({
     params: Promise<{ purchaseId: string }>;
 }) {
     const { purchaseId } = await params;
-    const shop = await requirePermission("products.update");
+    const shop = await requirePermission("purchases.edit_draft");
     const draft = await getPurchaseDraftForEdit(shop.shopId, purchaseId);
 
     if (!draft) notFound();

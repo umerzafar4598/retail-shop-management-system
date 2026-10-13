@@ -13,7 +13,7 @@ const read = (formData: FormData, key: string) => {
 };
 
 export async function saveCashDrawerDefaultsAction(_previous: CashDrawerSettingsActionState, formData: FormData): Promise<CashDrawerSettingsActionState> {
-  const shop = await requirePermission("products.update");
+  const shop = await requirePermission("cash_drawers.manage");
   const session = await requireSession();
   try {
     const result = await saveCashDrawerDefaultsForShop({

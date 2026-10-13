@@ -10,9 +10,9 @@ const moneyFormatter = new Intl.NumberFormat("en-PK", { minimumFractionDigits: 2
 const formatPKR = (value: string | number) => `Rs ${moneyFormatter.format(Number(value))}`;
 
 export default async function CustomersPage() {
-  const shop = await requirePermission("products.view");
+  const shop = await requirePermission("customers.view");
   const session = await requireSession();
-  const canCreateCustomer = await hasPermission(session.user.id, shop.shopId, "products.create");
+  const canCreateCustomer = await hasPermission(session.user.id, shop.shopId, "customers.create");
   const customers = await listCustomersForShop(shop.shopId);
   const totalOutstanding = customers.reduce((total, customer) => total.plus(customer.outstandingBalance), new Decimal(0)).toFixed(2);
 

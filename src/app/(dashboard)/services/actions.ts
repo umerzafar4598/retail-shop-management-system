@@ -14,7 +14,7 @@ const read = (formData: FormData, key: string) => {
 };
 
 export async function createServiceTransactionAction(_previous: ServiceActionState, formData: FormData): Promise<ServiceActionState> {
-  const shop = await requirePermission("products.update");
+  const shop = await requirePermission("services.create");
   const session = await requireSession();
   try {
     const result = await createServiceTransactionForShop({
@@ -41,13 +41,18 @@ export async function createServiceTransactionAction(_previous: ServiceActionSta
 }
 
 export async function transitionServiceTransactionAction(_previous: ServiceActionState, formData: FormData): Promise<ServiceActionState> {
-  const shop = await requirePermission("products.update");
-  const session = await requireSession();
   const serviceId = read(formData, "serviceId");
   const rawAction = read(formData, "action");
   if (!(rawAction === "PROCESSING" || rawAction === "COMPLETED" || rawAction === "FAILED" || rawAction === "CANCELLED")) {
     return { status: "error", message: "Choose a valid service status action." };
   }
+  const requiredPermission = rawAction === "PROCESSING"
+    ? "services.process"
+    : rawAction === "COMPLETED"
+      ? "services.complete"
+      : "services.cancel";
+  const shop = await requirePermission(requiredPermission);
+  const session = await requireSession();
   try {
     const result = await transitionServiceTransactionForShop({
       shopId: shop.shopId,

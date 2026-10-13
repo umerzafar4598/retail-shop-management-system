@@ -7,7 +7,7 @@ import ExpenseCategoryForm from "./expense-category-form";
 import ExpenseCategoryRow from "./expense-category-row";
 
 export default async function ExpenseSettingsPage() {
-  const shop = await requirePermission("products.update");
+  const shop = await requirePermission("expenses.manage_categories");
   const session = await requireSession();
   const data = await getExpenseCategorySettingsForShop(shop.shopId, session.user.id);
   return (

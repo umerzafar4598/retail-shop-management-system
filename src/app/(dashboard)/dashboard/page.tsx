@@ -3,6 +3,7 @@ import Link from "next/link";
 import LogoutButton from "./logout-button";
 import { hasPermission, requirePermission } from "@/lib/authorization";
 import { getCurrentSession } from "@/lib/session";
+import { listFinancialAccounts } from "@/lib/finance/financial-accounts";
 import {
   getDefaultReportDateRange,
   getManagementReportForShop,
@@ -40,7 +41,7 @@ function MetricCard({ label, value, detail, accent = false }: MetricCardProps) {
   return (
     <article className={`rounded-2xl border bg-white p-5 shadow-sm ${accent ? "border-slate-400" : "border-slate-200"}`}>
       <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-2 break-words text-xl font-semibold tabular-nums text-slate-900">{formatted}</p>
+      <p className="mt-2 wrap-break-word text-xl font-semibold tabular-nums text-slate-900">{formatted}</p>
       {detail ? <p className="mt-1 text-xs text-slate-500">{detail}</p> : null}
     </article>
   );
@@ -81,8 +82,11 @@ const viewLinks: QuickLink[] = [
   { href: "/cash-sessions", label: "Cash sessions", description: "Open, close, and reconcile each drawer." },
   { href: "/settings/finance/accounts", label: "Financial accounts", description: "Review cash, wallet, bank, and drawer balances." },
   { href: "/settings/finance/ledger", label: "Financial ledger", description: "Inspect posted journals and account movements." },
-  { href: "/reports", label: "Reports & analytics", description: "Open date-filtered management reports." },
-  { href: "/reports/inventory", label: "Inventory valuation", description: "Review stock valuation by product variant." },
+];
+
+const reportLinks: QuickLink[] = [
+  { href: "/reports", label: "Reports & analytics", description: "Owner-only revenue, profit, and financial reports." },
+  { href: "/reports/inventory", label: "Inventory valuation", description: "Owner-only inventory valuation by product variant." },
 ];
 
 const managementLinks: QuickLink[] = [
@@ -101,16 +105,27 @@ export default async function DashboardPage() {
   const context = await requirePermission("dashboard.view");
   const session = await getCurrentSession();
 
-  const [canViewOperations, canManageOperations] = session
+  const [canViewOperations, canManageOperations, canViewAudit, hasReportsPermission, canViewAccounts] = session
     ? await Promise.all([
-        hasPermission(session.user.id, context.shopId, "products.view"),
-        hasPermission(session.user.id, context.shopId, "products.update"),
-      ])
-    : [false, false];
+      hasPermission(session.user.id, context.shopId, "products.view"),
+      hasPermission(session.user.id, context.shopId, "products.update"),
+      hasPermission(session.user.id, context.shopId, "audit.view"),
+      hasPermission(session.user.id, context.shopId, "reports.view"),
+      hasPermission(session.user.id, context.shopId, "financial_accounts.view"),
+    ])
+    : [false, false, false, false, false];
 
-  const report = canViewOperations
+  // Never calculate/render aggregate report data for non-owners. The report
+  // service independently enforces both the permission and Owner role.
+  const canViewReports = hasReportsPermission && context.roleName.trim().toLocaleLowerCase("en-US") === "owner";
+  const report = canViewReports
     ? await getManagementReportForShop(context.shopId, getDefaultReportDateRange())
     : null;
+  // Managers/cashiers retain individual financial account balances without
+  // receiving aggregate revenue, profit, receivables/payables, or valuation KPIs.
+  const staffFinancialAccounts = !canViewReports && canViewAccounts
+    ? await listFinancialAccounts()
+    : [];
 
   const metrics = report?.metrics;
   const periodLabel = report
@@ -120,6 +135,8 @@ export default async function DashboardPage() {
   const linksToShow = [
     ...(canManageOperations ? managementLinks.filter((item) => item.href === "/pos" || item.href === "/settings/finance/transfers" || item.href === "/settings/cash-drawers" || item.href === "/settings/expenses" || item.href === "/settings/services" || item.href === "/settings/brands" || item.href === "/settings/categories" || item.href === "/settings/shop" || item.href === "/settings/staff") : []),
     ...(canViewOperations ? viewLinks : []),
+    ...(canViewReports ? reportLinks : []),
+    ...(canViewAudit ? [{ href: "/audit", label: "Audit history", description: "Review who changed business records and when." }] : []),
   ];
 
   return (
@@ -136,7 +153,7 @@ export default async function DashboardPage() {
               <p className="text-sm font-medium text-slate-800">{session?.user.name}</p>
               <p className="text-xs text-slate-500">{context.roleName}</p>
             </div>
-            {canViewOperations ? (
+            {canViewReports ? (
               <Link href="/reports" className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50">View reports</Link>
             ) : null}
             <LogoutButton />
@@ -217,10 +234,45 @@ export default async function DashboardPage() {
             </section>
           </>
         ) : (
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Your shop workspace</h2>
-            <p className="mt-2 text-sm text-slate-600">You are signed in to {context.shopName} as {context.roleName}. Financial and operational metrics are available to staff with the appropriate viewing permission.</p>
-          </section>
+          <div className="space-y-4">
+            {context.roleName === "Owner" ? (
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-900">Current financial accounts</h2>
+                    <p className="mt-1 text-sm text-slate-500">Individual account balances from posted ledger entries. Aggregate revenue, profit, receivables/payables, and financial reports are owner-only.</p>
+                  </div>
+                  <Link href="/settings/finance/accounts" className="text-sm font-medium text-slate-700 underline underline-offset-4 hover:text-slate-950">All accounts</Link>
+                </div>
+                {staffFinancialAccounts.length === 0 ? (
+                  <p className="mt-4 text-sm text-slate-500">No financial accounts available.</p>
+                ) : (
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full min-w-[420px] text-sm">
+                      <thead><tr className="border-b text-left text-xs uppercase tracking-wide text-slate-500"><th className="pb-3 pr-3 font-medium">Account</th><th className="pb-3 pr-3 font-medium">Type</th><th className="pb-3 text-right font-medium">Balance</th></tr></thead>
+                      <tbody>
+                        {staffFinancialAccounts.filter((account) => account.isActive).map((account) => (
+                          <tr key={account.id} className="border-b last:border-0">
+                            <td className="py-3 pr-3"><p className="font-medium text-slate-800">{account.name}</p><p className="text-xs text-slate-500">{account.provider}</p></td>
+                            <td className="py-3 pr-3 text-slate-500">{account.kind.replaceAll("_", " ")}</td>
+                            <td className={`py-3 text-right font-medium tabular-nums ${Number(account.balance) < 0 ? "text-amber-700" : "text-slate-900"}`}>{formatPKR(account.balance)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                  <Link href="/settings/finance/ledger" className="font-medium text-slate-700 underline underline-offset-4">Open financial ledger</Link>
+                  <Link href="/cash-sessions" className="font-medium text-slate-700 underline underline-offset-4">Reconcile cash drawers</Link>
+                </div>
+              </section>
+            ) : null}
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-900">Your shop workspace</h2>
+              <p className="mt-2 text-sm text-slate-600">You are signed in to {context.shopName} as {context.roleName}. Individual transactions and account balances remain available where permitted; aggregate revenue, profit, and financial reports are restricted to the Owner role.</p>
+            </section>
+          </div>
         )}
 
         <section className="space-y-4">
@@ -237,7 +289,7 @@ export default async function DashboardPage() {
           )}
         </section>
 
-        <p className="text-xs leading-5 text-slate-500">Reports are read-only and derived from recorded transactions. Financial performance reflects the displayed period; account balances, receivables, payables, and inventory valuation are current snapshots. Estimated operating profit is a management KPI, not a formal financial statement.</p>
+        <p className="text-xs leading-5 text-slate-500">{canViewReports ? "Reports are read-only and derived from recorded transactions. Financial performance reflects the displayed period; account balances, receivables, payables, and inventory valuation are current snapshots. Estimated operating profit is a management KPI, not a formal financial statement." : "Individual transactions and permitted account balances are sourced from posted records. Aggregate revenue, profit, and financial reports are restricted to the Owner role."}</p>
       </div>
     </main>
   );

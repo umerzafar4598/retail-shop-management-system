@@ -4,6 +4,8 @@ import Decimal from "decimal.js";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
+import { auditLogs } from "@/db/schema";
+import { getCurrentSession } from "@/lib/session";
 import {
     hasPermission,
     requirePermission,
@@ -413,6 +415,8 @@ export async function createProduct(
     const context = await requirePermission(
         "products.create",
     );
+    const session = await getCurrentSession();
+    if (!session) throw new Error("You must be authenticated.");
 
     const data =
         normalizeCreateProductInput(input);
@@ -589,6 +593,24 @@ export async function createProduct(
       )
     `);
 
+        await tx.insert(auditLogs).values({
+            shopId: context.shopId,
+            actorUserId: session.user.id,
+            action: "PRODUCT_CREATED",
+            entityType: "PRODUCT",
+            entityId: product.id,
+            metadata: {
+                productName: data.name,
+                variantId: variant.id,
+                variantName: data.variantName,
+                sku: data.sku,
+                categoryId: data.categoryId,
+                brandId: data.brandId,
+                trackByImei: data.trackByImei,
+                sellingPrice: data.sellingPrice.toFixed(2),
+            },
+        });
+
         return {
             productId: product.id,
             variantId: variant.id,
@@ -603,6 +625,8 @@ export async function setProductStatus(
     const context = await requirePermission(
         "products.update",
     );
+    const session = await getCurrentSession();
+    if (!session) throw new Error("You must be authenticated.");
 
     if (!productId?.trim()) {
         throw new Error(
@@ -612,8 +636,8 @@ export async function setProductStatus(
 
     await db.transaction(async (tx) => {
         const result =
-            await tx.execute<{ id: string }>(sql`
-        SELECT id
+            await tx.execute<{ id: string; name: string; active: boolean }>(sql`
+        SELECT id, name, active
         FROM products
         WHERE id = ${productId}
           AND shop_id = ${context.shopId}
@@ -655,6 +679,22 @@ export async function setProductStatus(
         WHERE product_id = ${product.id}
           AND shop_id = ${context.shopId}
       `);
+        }
+
+        if (product.active !== active) {
+            await tx.insert(auditLogs).values({
+                shopId: context.shopId,
+                actorUserId: session.user.id,
+                action: active ? "PRODUCT_REACTIVATED" : "PRODUCT_DEACTIVATED",
+                entityType: "PRODUCT",
+                entityId: product.id,
+                metadata: {
+                    productName: product.name,
+                    beforeActive: product.active,
+                    afterActive: active,
+                    variantsDeactivated: !active,
+                },
+            });
         }
     });
 }

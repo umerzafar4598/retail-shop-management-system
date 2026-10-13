@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { requirePermission } from "@/lib/authorization";
+import { requireOwnerFinancialReportAccess } from "@/lib/authorization/owner-financial-reports";
 import {
   getManagementReportForShop,
   normalizeReportDateRange,
@@ -22,7 +22,7 @@ function MetricCard({ label, value, detail, accent = false }: { label: string; v
 }
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ start?: string; end?: string }> }) {
-  const shop = await requirePermission("products.view");
+  const shop = await requireOwnerFinancialReportAccess();
   const requested = await searchParams;
   const normalized = normalizeReportDateRange(requested.start, requested.end);
   const data = await getManagementReportForShop(shop.shopId, normalized.range);

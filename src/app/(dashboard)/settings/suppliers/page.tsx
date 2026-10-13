@@ -7,12 +7,12 @@ import SupplierRow from "./supplier-row";
 
 export default async function SuppliersPage() {
     const session = await requireSession();
-    const shop = await requirePermission("products.view");
+    const shop = await requirePermission("suppliers.view");
 
     const [suppliers, canCreate, canUpdate] = await Promise.all([
         listSuppliers(shop.shopId),
-        hasPermission(session.user.id, shop.shopId, "products.create"),
-        hasPermission(session.user.id, shop.shopId, "products.update"),
+        hasPermission(session.user.id, shop.shopId, "suppliers.create"),
+        hasPermission(session.user.id, shop.shopId, "suppliers.update"),
     ]);
 
     const activeCount = suppliers.filter(

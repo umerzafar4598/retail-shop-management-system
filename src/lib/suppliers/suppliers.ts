@@ -3,7 +3,7 @@ import "server-only";
 import { and, asc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { suppliers } from "@/db/schema";
+import { auditLogs, suppliers } from "@/db/schema";
 
 export type SupplierInput = {
     name: string;
@@ -71,6 +71,7 @@ export async function listSuppliers(shopId: string) {
 
 export async function createSupplierForShop(
     shopId: string,
+    actorUserId: string,
     input: SupplierInput,
 ) {
     const name = normalizeRequiredName(input.name);
@@ -78,42 +79,45 @@ export async function createSupplierForShop(
     const address = normalizeOptionalText(input.address, "Address", 500);
     const notes = normalizeOptionalText(input.notes, "Notes", 2000);
 
-    const existing = await db
-        .select({ id: suppliers.id })
-        .from(suppliers)
-        .where(
-            and(
-                eq(suppliers.shopId, shopId),
-                sql`lower(trim(${suppliers.name})) = lower(${name})`,
-            ),
-        )
-        .limit(1);
+    return db.transaction(async (tx) => {
+        const existing = await tx
+            .select({ id: suppliers.id })
+            .from(suppliers)
+            .where(
+                and(
+                    eq(suppliers.shopId, shopId),
+                    sql`lower(trim(${suppliers.name})) = lower(${name})`,
+                ),
+            )
+            .limit(1);
 
-    if (existing.length > 0) {
-        throw new SupplierInputError(
-            "A supplier with this name already exists. Check the existing list before creating another record.",
-        );
-    }
+        if (existing.length > 0) {
+            throw new SupplierInputError(
+                "A supplier with this name already exists. Check the existing list before creating another record.",
+            );
+        }
 
-    const [supplier] = await db
-        .insert(suppliers)
-        .values({
+        const [supplier] = await tx
+            .insert(suppliers)
+            .values({ shopId, name, phone, address, notes })
+            .returning({ id: suppliers.id, name: suppliers.name });
+
+        if (!supplier) throw new SupplierInputError("Supplier could not be created.");
+        await tx.insert(auditLogs).values({
             shopId,
-            name,
-            phone,
-            address,
-            notes,
-        })
-        .returning({
-            id: suppliers.id,
-            name: suppliers.name,
+            actorUserId,
+            action: "SUPPLIER_CREATED",
+            entityType: "SUPPLIER",
+            entityId: supplier.id,
+            metadata: { name: supplier.name, phoneProvided: Boolean(phone), addressProvided: Boolean(address) },
         });
-
-    return supplier;
+        return supplier;
+    });
 }
 
 export async function setSupplierActiveForShop(
     shopId: string,
+    actorUserId: string,
     supplierId: string,
     active: boolean,
 ) {
@@ -125,27 +129,32 @@ export async function setSupplierActiveForShop(
         throw new SupplierInputError("Invalid supplier ID.");
     }
 
-    const [updated] = await db
-        .update(suppliers)
-        .set({
-            active,
-            updatedAt: new Date(),
-        })
-        .where(
-            and(
-                eq(suppliers.id, supplierId),
-                eq(suppliers.shopId, shopId),
-            ),
-        )
-        .returning({
-            id: suppliers.id,
-            name: suppliers.name,
-            active: suppliers.active,
+    return db.transaction(async (tx) => {
+        const [current] = await tx
+            .select({ id: suppliers.id, name: suppliers.name, active: suppliers.active })
+            .from(suppliers)
+            .where(and(eq(suppliers.id, supplierId), eq(suppliers.shopId, shopId)))
+            .for("update")
+            .limit(1);
+
+        if (!current) throw new SupplierInputError("Supplier was not found in this shop.");
+        if (current.active === active) return current;
+
+        const [updated] = await tx
+            .update(suppliers)
+            .set({ active, updatedAt: new Date() })
+            .where(and(eq(suppliers.id, supplierId), eq(suppliers.shopId, shopId)))
+            .returning({ id: suppliers.id, name: suppliers.name, active: suppliers.active });
+
+        if (!updated) throw new SupplierInputError("Supplier was not found in this shop.");
+        await tx.insert(auditLogs).values({
+            shopId,
+            actorUserId,
+            action: active ? "SUPPLIER_ACTIVATED" : "SUPPLIER_DEACTIVATED",
+            entityType: "SUPPLIER",
+            entityId: updated.id,
+            metadata: { name: updated.name, beforeActive: current.active, afterActive: active },
         });
-
-    if (!updated) {
-        throw new SupplierInputError("Supplier was not found in this shop.");
-    }
-
-    return updated;
+        return updated;
+    });
 }

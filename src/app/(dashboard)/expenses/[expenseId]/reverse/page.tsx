@@ -14,13 +14,13 @@ function getPakistanToday(): string {
 }
 
 export default async function ExpenseReversalPage({ params }: { params: Promise<{ expenseId: string }> }) {
-  const shop = await requirePermission("products.view");
+  const shop = await requirePermission("expenses.view");
   const session = await requireSession();
   const { expenseId } = await params;
   const [data, settings, canManage] = await Promise.all([
     getExpenseForReversalPageData(shop.shopId, expenseId),
     getExpensePageData(shop.shopId),
-    hasPermission(session.user.id, shop.shopId, "products.update"),
+    hasPermission(session.user.id, shop.shopId, "expenses.reverse"),
   ]);
   if (!data) notFound();
   const { expense, reversal } = data;

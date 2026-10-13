@@ -13,9 +13,13 @@ const moneyFormatter = new Intl.NumberFormat("en-PK", { minimumFractionDigits: 2
 const formatPKR = (value: string | number) => `Rs ${moneyFormatter.format(Number(value))}`;
 
 export default async function SaleReceiptPage({ params }: { params: Promise<{ saleId: string }> }) {
-  const shop = await requirePermission("products.view");
+  const shop = await requirePermission("sales.view");
   const session = await requireSession();
-  const canRecordPayments = await hasPermission(session.user.id, shop.shopId, "products.update");
+  const [canRecordPayments, canReturn, canExchange] = await Promise.all([
+    hasPermission(session.user.id, shop.shopId, "sales.collect_payment"),
+    hasPermission(session.user.id, shop.shopId, "sales.return"),
+    hasPermission(session.user.id, shop.shopId, "sales.exchange"),
+  ]);
   const { saleId } = await params;
   const [details, returnHistory] = await Promise.all([
     getSaleDetailsForShop(shop.shopId, saleId),
@@ -35,7 +39,7 @@ export default async function SaleReceiptPage({ params }: { params: Promise<{ sa
     <main className="mx-auto max-w-4xl space-y-5 p-4 md:p-6 print:max-w-none print:p-0">
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Link href="/sales" className="text-sm text-muted-foreground hover:text-foreground">← Back to Sales</Link>
-        <div className="flex flex-wrap gap-2"><PrintReceiptButton />{sale.status === "COMPLETED" && hasReturnableItems && canRecordPayments && exchangeCreditApplied.isZero() && !hasPriorExchange ? <Link href={`/sales/${sale.id}/returns/new`} className="inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium">Record return</Link> : null}{sale.status === "COMPLETED" && hasReturnableItems && canRecordPayments ? <Link href={`/sales/${sale.id}/exchanges/new`} className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground">Record exchange</Link> : null}</div>
+        <div className="flex flex-wrap gap-2"><PrintReceiptButton />{sale.status === "COMPLETED" && hasReturnableItems && canReturn && exchangeCreditApplied.isZero() && !hasPriorExchange ? <Link href={`/sales/${sale.id}/returns/new`} className="inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium">Record return</Link> : null}{sale.status === "COMPLETED" && hasReturnableItems && canExchange ? <Link href={`/sales/${sale.id}/exchanges/new`} className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground">Record exchange</Link> : null}</div>
       </div>
 
       <section className="rounded-xl border bg-card p-5 md:p-7 print:rounded-none print:border-0 print:p-0">

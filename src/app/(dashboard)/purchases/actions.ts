@@ -19,7 +19,7 @@ export async function createPurchaseDraftAction(
     _previousState: PurchaseActionState,
     formData: FormData,
 ): Promise<PurchaseActionState> {
-    const shop = await requirePermission("products.create");
+    const shop = await requirePermission("purchases.create");
     const session = await requireSession();
 
     try {

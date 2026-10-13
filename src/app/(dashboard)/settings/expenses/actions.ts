@@ -17,7 +17,7 @@ const read = (formData: FormData, key: string) => {
 };
 
 export async function createExpenseCategoryAction(_previous: ExpenseCategoryActionState, formData: FormData): Promise<ExpenseCategoryActionState> {
-  const shop = await requirePermission("products.update");
+  const shop = await requirePermission("expenses.manage_categories");
   const session = await requireSession();
   try {
     await createExpenseCategoryForShop({
@@ -37,7 +37,7 @@ export async function createExpenseCategoryAction(_previous: ExpenseCategoryActi
 }
 
 export async function setExpenseCategoryActiveAction(_previous: ExpenseCategoryActionState, formData: FormData): Promise<ExpenseCategoryActionState> {
-  const shop = await requirePermission("products.update");
+  const shop = await requirePermission("expenses.manage_categories");
   const session = await requireSession();
   const rawActive = read(formData, "active");
   if (rawActive !== "true" && rawActive !== "false") return { status: "error", message: "Choose a valid category status." };

@@ -7,7 +7,7 @@ const moneyFormatter = new Intl.NumberFormat("en-PK", { minimumFractionDigits: 2
 const formatPKR = (value: string | number) => `Rs ${moneyFormatter.format(Number(value))}`;
 
 export default async function SalesHistoryPage() {
-  const shop = await requirePermission("products.view");
+  const shop = await requirePermission("sales.view");
   const recentSales = await listRecentSalesForShop(shop.shopId);
 
   return (

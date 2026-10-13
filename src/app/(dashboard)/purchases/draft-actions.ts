@@ -17,7 +17,7 @@ export async function updatePurchaseDraftAction(
     _previousState: PurchaseActionState,
     formData: FormData,
 ): Promise<PurchaseActionState> {
-    const shop = await requirePermission("products.update");
+    const shop = await requirePermission("purchases.edit_draft");
     const session = await requireSession();
     const purchaseIdValue = formData.get("purchaseId");
     const purchaseId = typeof purchaseIdValue === "string" ? purchaseIdValue : "";
@@ -53,7 +53,7 @@ export async function cancelPurchaseDraftAction(
     _previousState: PurchaseActionState,
     formData: FormData,
 ): Promise<PurchaseActionState> {
-    const shop = await requirePermission("products.update");
+    const shop = await requirePermission("purchases.cancel_draft");
     const session = await requireSession();
     const purchaseIdValue = formData.get("purchaseId");
     const purchaseId = typeof purchaseIdValue === "string" ? purchaseIdValue : "";

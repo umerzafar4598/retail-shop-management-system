@@ -18,11 +18,16 @@ function dateTime(value: Date | null | undefined) {
 }
 
 export default async function CashSessionsPage() {
-  const shop = await requirePermission("products.view");
+  const shop = await requirePermission("cash_sessions.view");
   const session = await requireSession();
-  const [data, canManage] = await Promise.all([
+  const [data, canOpen, canClose, canReconcile, canViewExpenses, canManageDrawerDefaults, canViewAccounts] = await Promise.all([
     getCashSessionPageData(shop.shopId),
-    hasPermission(session.user.id, shop.shopId, "products.update"),
+    hasPermission(session.user.id, shop.shopId, "cash_sessions.open"),
+    hasPermission(session.user.id, shop.shopId, "cash_sessions.close"),
+    hasPermission(session.user.id, shop.shopId, "cash_sessions.reconcile"),
+    hasPermission(session.user.id, shop.shopId, "expenses.view"),
+    hasPermission(session.user.id, shop.shopId, "cash_drawers.manage"),
+    hasPermission(session.user.id, shop.shopId, "financial_accounts.view"),
   ]);
   const openCount = data.sessions.filter((item) => item.status === "OPEN").length;
   const reconcileCount = data.sessions.filter((item) => item.status === "RECONCILIATION_REQUIRED").length;
@@ -35,7 +40,7 @@ export default async function CashSessionsPage() {
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">Cash Sessions</h1>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">Record opening cash, compare expected cash movement to the physical count, and retain any discrepancy for review. Cash session operations do not themselves post accounting adjustments.</p>
         </div>
-        <div className="flex gap-3 text-sm"><Link className="underline underline-offset-4" href="/expenses">Expenses</Link><Link className="underline underline-offset-4" href="/settings/cash-drawers">Drawer defaults</Link><Link className="underline underline-offset-4" href="/settings/finance/accounts">Financial accounts</Link></div>
+        <div className="flex flex-wrap gap-3 text-sm">{canViewExpenses ? <Link className="underline underline-offset-4" href="/expenses">Expenses</Link> : null}{canManageDrawerDefaults ? <Link className="underline underline-offset-4" href="/settings/cash-drawers">Drawer defaults</Link> : null}{canViewAccounts ? <Link className="underline underline-offset-4" href="/settings/finance/accounts">Financial accounts</Link> : null}</div>
       </header>
 
       <section className="grid gap-4 sm:grid-cols-3">
@@ -44,7 +49,7 @@ export default async function CashSessionsPage() {
         <div className="rounded-xl border bg-card p-5"><p className="text-sm text-muted-foreground">Need discrepancy review</p><p className="mt-2 text-2xl font-semibold">{reconcileCount}</p></div>
       </section>
 
-      {canManage ? <OpenCashSessionForm accounts={data.availableAccounts} /> : null}
+      {canOpen ? <OpenCashSessionForm accounts={data.availableAccounts} /> : null}
 
       <section className="space-y-4">
         <div><h2 className="text-lg font-semibold">Session history</h2><p className="mt-1 text-sm text-muted-foreground">Latest 50 sessions for this shop.</p></div>
@@ -60,8 +65,8 @@ export default async function CashSessionsPage() {
               <div className="rounded-lg bg-muted/40 p-3"><p className="text-xs text-muted-foreground">Expected / actual close</p><p className="mt-1 font-semibold tabular-nums">{item.expectedClosingAmount === null ? "Not closed" : `${formatPKR(item.expectedClosingAmount)} / ${formatPKR(item.actualClosingAmount)}`}</p></div>
               <div className="rounded-lg bg-muted/40 p-3"><p className="text-xs text-muted-foreground">Difference (actual − expected)</p><p className={`mt-1 font-semibold tabular-nums ${Number(item.difference ?? 0) === 0 ? "" : "text-amber-700 dark:text-amber-300"}`}>{item.difference === null ? "Not closed" : formatPKR(item.difference)}</p></div>
             </div>
-            {canManage && item.status === "OPEN" ? <CloseCashSessionForm cashSessionId={item.id} /> : null}
-            {canManage && item.status === "RECONCILIATION_REQUIRED" ? <AcknowledgeCashDiscrepancyForm cashSessionId={item.id} /> : null}
+            {canClose && item.status === "OPEN" ? <CloseCashSessionForm cashSessionId={item.id} /> : null}
+            {canReconcile && item.status === "RECONCILIATION_REQUIRED" ? <AcknowledgeCashDiscrepancyForm cashSessionId={item.id} /> : null}
             {item.status === "CLOSED" && item.closedAt ? <p className="mt-3 text-xs text-muted-foreground">Closed {dateTime(item.closedAt)}. Any recorded difference remains preserved in the session history.</p> : null}
           </article>
         ))}

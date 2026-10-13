@@ -18,7 +18,7 @@ export async function recordSupplierPaymentAction(
     _previousState: SupplierPaymentActionState,
     formData: FormData,
 ): Promise<SupplierPaymentActionState> {
-    const shop = await requirePermission("products.update");
+    const shop = await requirePermission("purchases.record_payment");
     const session = await requireSession();
 
     const getString = (key: string) => {

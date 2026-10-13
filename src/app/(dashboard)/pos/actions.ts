@@ -17,7 +17,7 @@ export async function completePosSaleAction(
   _previousState: PosCheckoutActionState,
   formData: FormData,
 ): Promise<PosCheckoutActionState> {
-  const shop = await requirePermission("products.update");
+  const shop = await requirePermission("sales.create");
   const session = await requireSession();
   const getString = (key: string) => {
     const value = formData.get(key);

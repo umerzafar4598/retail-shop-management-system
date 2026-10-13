@@ -18,7 +18,7 @@ export async function receivePurchaseAction(
     _previousState: ReceivePurchaseActionState,
     formData: FormData,
 ): Promise<ReceivePurchaseActionState> {
-    const shop = await requirePermission("products.update");
+    const shop = await requirePermission("purchases.post");
     const session = await requireSession();
 
     const getString = (key: string) => {

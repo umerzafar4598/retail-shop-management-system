@@ -4,6 +4,7 @@ import Decimal from "decimal.js";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
+import { requireOwnerFinancialReportAccess } from "@/lib/authorization/owner-financial-reports";
 
 export type ReportDateRange = {
   startDate: string;
@@ -55,6 +56,7 @@ export function normalizeReportDateRange(
 }
 
 export async function getManagementReportForShop(shopId: string, range: ReportDateRange) {
+  await requireOwnerFinancialReportAccess(shopId);
   const periodStart = sql`(CAST(${range.startDate} AS date)::timestamp AT TIME ZONE 'Asia/Karachi')`;
   const periodEnd = sql`((CAST(${range.endDate} AS date) + INTERVAL '1 day')::timestamp AT TIME ZONE 'Asia/Karachi')`;
 
@@ -249,6 +251,7 @@ export async function getManagementReportForShop(shopId: string, range: ReportDa
 }
 
 export async function getInventoryReportForShop(shopId: string) {
+  await requireOwnerFinancialReportAccess(shopId);
   const result = await db.execute<{
     variant_id: string;
     product_name: string;
