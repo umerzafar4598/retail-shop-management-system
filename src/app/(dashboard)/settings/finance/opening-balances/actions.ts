@@ -1,8 +1,11 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 
-import { setOpeningBalance } from "@/lib/finance/opening-balances";
+import { requirePermission } from "@/lib/authorization";
+
+import { OpeningBalanceError, setOpeningBalance } from "@/lib/finance/opening-balances";
 
 const OPENING_BALANCES_PATH =
     "/settings/finance/opening-balances";
@@ -16,6 +19,8 @@ export async function setOpeningBalanceAction(
     financialAccountId: string,
     amount: string,
 ): Promise<ActionResult> {
+    await requirePermission("financial_accounts.opening_balance");
+
     try {
         await setOpeningBalance(
             financialAccountId,
@@ -32,12 +37,10 @@ export async function setOpeningBalanceAction(
                 "Opening balance recorded successfully.",
         };
     } catch (error) {
-        return {
-            success: false,
-            message:
-                error instanceof Error
-                    ? error.message
-                    : "Failed to record the opening balance.",
-        };
+        if (error instanceof OpeningBalanceError) {
+            return { success: false, message: error.message };
+        }
+        logUnexpectedActionError("src/app/(dashboard)/settings/finance/opening-balances/actions.ts", error);
+        return { success: false, message: "The opening balance could not be recorded. Please try again." };
     }
 }

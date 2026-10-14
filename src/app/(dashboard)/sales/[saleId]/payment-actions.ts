@@ -1,5 +1,6 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 
 import { requirePermission } from "@/lib/authorization";
@@ -42,7 +43,7 @@ export async function recordSalePaymentAction(
     };
   } catch (error) {
     if (error instanceof CustomerPaymentError) return { status: "error", message: error.message };
-    console.error("Record customer payment failed:", error);
+    logUnexpectedActionError("src/app/(dashboard)/sales/[saleId]/payment-actions.ts", error);
     return { status: "error", message: "The customer payment could not be recorded. Check the server log if the problem continues." };
   }
 }

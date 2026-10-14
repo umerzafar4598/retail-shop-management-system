@@ -7,6 +7,14 @@ import {
     postLedgerTransactionInTransaction,
 } from "./ledger-core";
 
+/** Expected, user-safe validation/business-rule failure. */
+export class AccountTransferError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "AccountTransferError";
+    }
+}
+
 export type CreateAccountTransferInput = {
     sourceAccountId: string;
     destinationAccountId: string;
@@ -27,31 +35,31 @@ function normalizeAmount(value: string | number) {
     try {
         amount = new Decimal(value);
     } catch {
-        throw new Error(
+        throw new AccountTransferError(
             "Transfer amount must be a valid numeric amount.",
         );
     }
 
     if (!amount.isFinite()) {
-        throw new Error(
+        throw new AccountTransferError(
             "Transfer amount must be a finite numeric amount.",
         );
     }
 
     if (amount.isNegative()) {
-        throw new Error(
+        throw new AccountTransferError(
             "Transfer amount cannot be negative.",
         );
     }
 
     if (amount.decimalPlaces() > 2) {
-        throw new Error(
+        throw new AccountTransferError(
             "Transfer amount cannot have more than 2 decimal places.",
         );
     }
 
     if (amount.isZero()) {
-        throw new Error(
+        throw new AccountTransferError(
             "Transfer amount must be greater than zero.",
         );
     }
@@ -63,7 +71,7 @@ function normalizeReason(value?: string) {
     const reason = value?.trim() || null;
 
     if (reason && reason.length > 500) {
-        throw new Error(
+        throw new AccountTransferError(
             "Transfer reason must not exceed 500 characters.",
         );
     }
@@ -81,11 +89,11 @@ function validateAccountIds(
         input.destinationAccountId?.trim();
 
     if (!sourceAccountId) {
-        throw new Error("Source account is required.");
+        throw new AccountTransferError("Source account is required.");
     }
 
     if (!destinationAccountId) {
-        throw new Error(
+        throw new AccountTransferError(
             "Destination account is required.",
         );
     }
@@ -93,7 +101,7 @@ function validateAccountIds(
     if (
         sourceAccountId === destinationAccountId
     ) {
-        throw new Error(
+        throw new AccountTransferError(
             "Source and destination accounts must be different.",
         );
     }
@@ -161,7 +169,7 @@ export async function createAccountTransferInTransaction(
   `);
 
     if (accountResult.rows.length !== 2) {
-        throw new Error(
+        throw new AccountTransferError(
             "Source or destination financial account was not found.",
         );
     }
@@ -177,7 +185,7 @@ export async function createAccountTransferInTransaction(
     );
 
     if (!source || !destination) {
-        throw new Error(
+        throw new AccountTransferError(
             "Source or destination financial account was not found.",
         );
     }
@@ -186,7 +194,7 @@ export async function createAccountTransferInTransaction(
         !source.isActive ||
         !source.ledgerActive
     ) {
-        throw new Error(
+        throw new AccountTransferError(
             `Source account "${source.name}" is inactive.`,
         );
     }
@@ -195,7 +203,7 @@ export async function createAccountTransferInTransaction(
         !destination.isActive ||
         !destination.ledgerActive
     ) {
-        throw new Error(
+        throw new AccountTransferError(
             `Destination account "${destination.name}" is inactive.`,
         );
     }
@@ -220,7 +228,7 @@ export async function createAccountTransferInTransaction(
     );
 
     if (sourceBalance.lt(amount)) {
-        throw new Error(
+        throw new AccountTransferError(
             `Insufficient balance in "${source.name}". Available = Rs. ${sourceBalance.toFixed(
                 2,
             )}, requested = Rs. ${amount.toFixed(2)}.`,
@@ -263,7 +271,7 @@ export async function createAccountTransferInTransaction(
         transferResult.rows[0];
 
     if (!transfer) {
-        throw new Error(
+        throw new AccountTransferError(
             "Failed to create the account transfer.",
         );
     }

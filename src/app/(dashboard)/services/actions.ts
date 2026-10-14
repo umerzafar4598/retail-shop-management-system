@@ -1,5 +1,6 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 
 import { requirePermission } from "@/lib/authorization";
@@ -35,7 +36,7 @@ export async function createServiceTransactionAction(_previous: ServiceActionSta
     return { status: "success", serviceId: result.id, message: `Service ${result.documentNo} recorded as PENDING. The customer/provider funds are held in Service Clearing until the service is completed or refunded.` };
   } catch (error) {
     if (error instanceof ShopServiceError) return { status: "error", message: error.message };
-    console.error("Create service transaction failed:", error);
+    logUnexpectedActionError("src/app/(dashboard)/services/actions.ts", error);
     return { status: "error", message: "The service could not be recorded. No partial transaction should be committed; check the server log if the problem continues." };
   }
 }
@@ -76,7 +77,7 @@ export async function transitionServiceTransactionAction(_previous: ServiceActio
     return { status: "success", serviceId, message };
   } catch (error) {
     if (error instanceof ShopServiceError) return { status: "error", message: error.message };
-    console.error("Update service transaction failed:", error);
+    logUnexpectedActionError("src/app/(dashboard)/services/actions.ts", error);
     return { status: "error", message: "The service status could not be changed. Check the server log if the problem continues." };
   }
 }

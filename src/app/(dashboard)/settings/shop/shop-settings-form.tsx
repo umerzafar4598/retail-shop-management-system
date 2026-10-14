@@ -35,7 +35,7 @@ export default function ShopSettingsForm({ shop }: Props) {
         setSaving(true);
 
         try {
-            await updateShopSettings({
+            const result = await updateShopSettings({
                 name,
                 phone: phone || null,
                 address: address || null,
@@ -44,13 +44,14 @@ export default function ShopSettingsForm({ shop }: Props) {
                 logoUrl: logoUrl || null,
             });
 
-            setMessage("Shop settings saved successfully.");
-        } catch (error) {
-            setError(
-                error instanceof Error
-                    ? error.message
-                    : "Failed to save shop settings.",
-            );
+            if (!result.success) {
+                setError(result.message);
+                return;
+            }
+
+            setMessage(result.message);
+        } catch {
+            setError("Shop settings could not be saved. Please try again.");
         } finally {
             setSaving(false);
         }

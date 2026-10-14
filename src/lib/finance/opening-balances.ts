@@ -13,6 +13,15 @@ import {
     type PostedLedgerTransaction,
 } from "./ledger-core";
 
+/** Expected, user-safe validation/business-rule failure. Unexpected database errors
+ * remain ordinary errors and are reported with a generic message by server actions. */
+export class OpeningBalanceError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "OpeningBalanceError";
+    }
+}
+
 export type OpeningBalanceAccount = {
     id: string;
     ledgerAccountId: string;
@@ -38,31 +47,31 @@ function normalizeOpeningBalance(
     try {
         amount = new Decimal(value);
     } catch {
-        throw new Error(
+        throw new OpeningBalanceError(
             "Opening balance must be a valid numeric amount.",
         );
     }
 
     if (!amount.isFinite()) {
-        throw new Error(
+        throw new OpeningBalanceError(
             "Opening balance must be a finite numeric amount.",
         );
     }
 
     if (amount.isNegative()) {
-        throw new Error(
+        throw new OpeningBalanceError(
             "Opening balance cannot be negative.",
         );
     }
 
     if (amount.decimalPlaces() > 2) {
-        throw new Error(
+        throw new OpeningBalanceError(
             "Opening balance cannot have more than 2 decimal places.",
         );
     }
 
     if (amount.isZero()) {
-        throw new Error(
+        throw new OpeningBalanceError(
             "Opening balance must be greater than zero.",
         );
     }
@@ -154,7 +163,7 @@ export async function setOpeningBalance(
     const session = await getCurrentSession();
 
     if (!session) {
-        throw new Error("You must be authenticated.");
+        throw new OpeningBalanceError("You must be authenticated.");
     }
     const amount =
         normalizeOpeningBalance(rawAmount);
@@ -195,13 +204,13 @@ export async function setOpeningBalance(
         const account = accountResult.rows[0];
 
         if (!account) {
-            throw new Error(
+            throw new OpeningBalanceError(
                 "Financial account was not found.",
             );
         }
 
         if (!account.isActive) {
-            throw new Error(
+            throw new OpeningBalanceError(
                 "An inactive financial account cannot receive an opening balance.",
             );
         }
@@ -223,7 +232,7 @@ export async function setOpeningBalance(
       `);
 
         if (Boolean(historyResult.rows[0]?.exists)) {
-            throw new Error(
+            throw new OpeningBalanceError(
                 `Opening balance cannot be set because "${account.name}" already has ledger history.`,
             );
         }
@@ -240,7 +249,7 @@ export async function setOpeningBalance(
       `);
 
         if (Boolean(openingResult.rows[0]?.exists)) {
-            throw new Error(
+            throw new OpeningBalanceError(
                 `An opening balance has already been recorded for "${account.name}".`,
             );
         }
@@ -261,7 +270,7 @@ export async function setOpeningBalance(
             equityResult.rows[0];
 
         if (!openingEquity) {
-            throw new Error(
+            throw new OpeningBalanceError(
                 "Opening Balance Equity account is not configured.",
             );
         }

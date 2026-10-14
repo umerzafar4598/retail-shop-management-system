@@ -1,5 +1,6 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 
 import { requirePermission } from "@/lib/authorization";
@@ -72,7 +73,7 @@ export async function receivePurchaseAction(
             };
         }
 
-        console.error("Receive purchase failed:", error);
+        logUnexpectedActionError("src/app/(dashboard)/purchases/receive-actions.ts", error);
 
         return {
             status: "error",

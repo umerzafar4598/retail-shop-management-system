@@ -1,6 +1,11 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
+
+import { requirePermission } from "@/lib/authorization";
+
+import { AccountTransferError } from "@/lib/finance/account-transfer-core";
 
 import {
     createAccountTransfer,
@@ -18,6 +23,8 @@ type ActionResult = {
 export async function createAccountTransferAction(
     input: CreateAccountTransferInput,
 ): Promise<ActionResult> {
+    await requirePermission("account_transfers.create");
+
     try {
         const result =
             await createAccountTransfer(input);
@@ -34,12 +41,10 @@ export async function createAccountTransferAction(
             message: `Transfer ${result.documentNo} completed successfully.`,
         };
     } catch (error) {
-        return {
-            success: false,
-            message:
-                error instanceof Error
-                    ? error.message
-                    : "Failed to complete the account transfer.",
-        };
+        if (error instanceof AccountTransferError) {
+            return { success: false, message: error.message };
+        }
+        logUnexpectedActionError("src/app/(dashboard)/settings/finance/transfers/actions.ts", error);
+        return { success: false, message: "The account transfer could not be completed. Please try again." };
     }
 }

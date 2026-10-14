@@ -1,5 +1,6 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 
 import { requirePermission } from "@/lib/authorization";
@@ -42,7 +43,7 @@ export async function createSaleExchangeAction(_previousState: SaleExchangeActio
     };
   } catch (error) {
     if (error instanceof SaleExchangeError) return { status: "error", message: error.message };
-    console.error("Create sale exchange failed:", error);
+    logUnexpectedActionError("src/app/(dashboard)/sales/[saleId]/exchange-actions.ts", error);
     return { status: "error", message: "The exchange could not be completed. No changes should be committed; check the server log if the problem continues." };
   }
 }

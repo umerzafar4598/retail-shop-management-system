@@ -1,5 +1,6 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 
 import { requirePermission } from "@/lib/authorization";
@@ -44,7 +45,7 @@ export async function reverseExpenseAction(_previous: ExpenseReversalActionState
       : `Expense ${result.documentNo} was reversed with ${result.reversalDocumentNo}. The original record and journal remain in history. If a real expense still needs to be recorded, add the correct amount as a new expense document.` };
   } catch (error) {
     if (error instanceof ExpenseError) return { status: "error", message: error.message };
-    console.error("Reverse expense failed:", error);
+    logUnexpectedActionError("src/app/(dashboard)/expenses/[expenseId]/reverse/actions.ts", error);
     return { status: "error", message: "The expense could not be reversed. No partial reversal should be committed; check the server log if the problem continues." };
   }
 }

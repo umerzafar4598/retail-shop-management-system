@@ -1,5 +1,6 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 
 import { requirePermission } from "@/lib/authorization";
@@ -31,7 +32,7 @@ export async function createExpenseCategoryAction(_previous: ExpenseCategoryActi
     return { status: "success", message: "Expense category created and mapped to the selected ledger account." };
   } catch (error) {
     if (error instanceof ExpenseError) return { status: "error", message: error.message };
-    console.error("Create expense category failed:", error);
+    logUnexpectedActionError("src/app/(dashboard)/settings/expenses/actions.ts", error);
     return { status: "error", message: "The expense category could not be created." };
   }
 }
@@ -53,7 +54,7 @@ export async function setExpenseCategoryActiveAction(_previous: ExpenseCategoryA
     return { status: "success", message: rawActive === "true" ? "Expense category reactivated." : "Expense category deactivated. Historical expenses are unchanged." };
   } catch (error) {
     if (error instanceof ExpenseError) return { status: "error", message: error.message };
-    console.error("Update expense category failed:", error);
+    logUnexpectedActionError("src/app/(dashboard)/settings/expenses/actions.ts", error);
     return { status: "error", message: "The expense category status could not be changed." };
   }
 }

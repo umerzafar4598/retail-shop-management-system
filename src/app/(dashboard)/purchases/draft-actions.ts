@@ -1,5 +1,6 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -36,7 +37,7 @@ export async function updatePurchaseDraftAction(
             return { status: "error", message: error.message };
         }
 
-        console.error("Update purchase draft failed:", error);
+        logUnexpectedActionError("src/app/(dashboard)/purchases/draft-actions.ts", error);
         return {
             status: "error",
             message: "The purchase draft could not be updated. Please try again.",
@@ -71,7 +72,7 @@ export async function cancelPurchaseDraftAction(
             return { status: "error", message: error.message };
         }
 
-        console.error("Cancel purchase draft failed:", error);
+        logUnexpectedActionError("src/app/(dashboard)/purchases/draft-actions.ts", error);
         return {
             status: "error",
             message: "The purchase draft could not be cancelled. Please try again.",

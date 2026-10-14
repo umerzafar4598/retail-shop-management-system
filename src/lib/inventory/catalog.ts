@@ -11,6 +11,14 @@ import {
     requirePermission,
 } from "@/lib/authorization";
 
+/** Expected, user-safe validation/business-rule failure. */
+export class CatalogError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "CatalogError";
+    }
+}
+
 export type ProductVariant = {
     id: string;
     productId: string;
@@ -69,13 +77,13 @@ function normalizeText(
     const normalized = value?.trim() ?? "";
 
     if (!normalized) {
-        throw new Error(
+        throw new CatalogError(
             `${fieldName} is required.`,
         );
     }
 
     if (normalized.length > maxLength) {
-        throw new Error(
+        throw new CatalogError(
             `${fieldName} must not exceed ${maxLength} characters.`,
         );
     }
@@ -94,7 +102,7 @@ function normalizeOptionalText(
     }
 
     if (normalized.length > maxLength) {
-        throw new Error(
+        throw new CatalogError(
             `Value must not exceed ${maxLength} characters.`,
         );
     }
@@ -106,11 +114,11 @@ function normalizeSku(value: string) {
     const sku = value.trim().toUpperCase();
 
     if (!sku) {
-        throw new Error("SKU is required.");
+        throw new CatalogError("SKU is required.");
     }
 
     if (sku.length > 100) {
-        throw new Error(
+        throw new CatalogError(
             "SKU must not exceed 100 characters.",
         );
     }
@@ -126,25 +134,25 @@ function normalizePrice(
     try {
         price = new Decimal(value);
     } catch {
-        throw new Error(
+        throw new CatalogError(
             "Selling price must be a valid numeric amount.",
         );
     }
 
     if (!price.isFinite()) {
-        throw new Error(
+        throw new CatalogError(
             "Selling price must be a finite numeric amount.",
         );
     }
 
     if (price.isNegative()) {
-        throw new Error(
+        throw new CatalogError(
             "Selling price cannot be negative.",
         );
     }
 
     if (price.decimalPlaces() > 2) {
-        throw new Error(
+        throw new CatalogError(
             "Selling price cannot have more than 2 decimal places.",
         );
     }
@@ -161,7 +169,7 @@ function normalizeReorderLevel(
         !Number.isInteger(numericValue) ||
         numericValue < 0
     ) {
-        throw new Error(
+        throw new CatalogError(
             "Reorder level must be a non-negative whole number.",
         );
     }
@@ -185,13 +193,13 @@ function normalizeCreateProductInput(
         );
 
     if (!input.categoryId?.trim()) {
-        throw new Error(
+        throw new CatalogError(
             "Category is required.",
         );
     }
 
     if (!input.variantName?.trim()) {
-        throw new Error(
+        throw new CatalogError(
             "Variant name is required.",
         );
     }
@@ -416,7 +424,7 @@ export async function createProduct(
         "products.create",
     );
     const session = await getCurrentSession();
-    if (!session) throw new Error("You must be authenticated.");
+    if (!session) throw new CatalogError("You must be authenticated.");
 
     const data =
         normalizeCreateProductInput(input);
@@ -439,7 +447,7 @@ export async function createProduct(
             categoryResult.rows[0];
 
         if (!category) {
-            throw new Error(
+            throw new CatalogError(
                 "The selected category is invalid or inactive.",
             );
         }
@@ -459,7 +467,7 @@ export async function createProduct(
         `);
 
             if (!brandResult.rows[0]) {
-                throw new Error(
+                throw new CatalogError(
                     "The selected brand is invalid or inactive.",
                 );
             }
@@ -475,7 +483,7 @@ export async function createProduct(
       `);
 
         if (duplicateProduct.rows[0]) {
-            throw new Error(
+            throw new CatalogError(
                 "A product with this name already exists.",
             );
         }
@@ -490,7 +498,7 @@ export async function createProduct(
       `);
 
         if (duplicateSku.rows[0]) {
-            throw new Error(
+            throw new CatalogError(
                 "A variant with this SKU already exists.",
             );
         }
@@ -506,7 +514,7 @@ export async function createProduct(
         `);
 
             if (duplicateBarcode.rows[0]) {
-                throw new Error(
+                throw new CatalogError(
                     "A variant with this barcode already exists.",
                 );
             }
@@ -537,7 +545,7 @@ export async function createProduct(
             productResult.rows[0];
 
         if (!product) {
-            throw new Error(
+            throw new CatalogError(
                 "Failed to create the product.",
             );
         }
@@ -573,7 +581,7 @@ export async function createProduct(
             variantResult.rows[0];
 
         if (!variant) {
-            throw new Error(
+            throw new CatalogError(
                 "Failed to create the product variant.",
             );
         }
@@ -626,10 +634,10 @@ export async function setProductStatus(
         "products.update",
     );
     const session = await getCurrentSession();
-    if (!session) throw new Error("You must be authenticated.");
+    if (!session) throw new CatalogError("You must be authenticated.");
 
     if (!productId?.trim()) {
-        throw new Error(
+        throw new CatalogError(
             "Product ID is required.",
         );
     }
@@ -649,7 +657,7 @@ export async function setProductStatus(
             result.rows[0];
 
         if (!product) {
-            throw new Error(
+            throw new CatalogError(
                 "Product was not found.",
             );
         }

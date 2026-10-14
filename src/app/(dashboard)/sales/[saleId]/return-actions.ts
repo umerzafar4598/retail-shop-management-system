@@ -1,5 +1,6 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 
 import { requirePermission } from "@/lib/authorization";
@@ -35,7 +36,7 @@ export async function createSaleReturnAction(_previousState: SaleReturnActionSta
     };
   } catch (error) {
     if (error instanceof SaleReturnError) return { status: "error", message: error.message };
-    console.error("Create sale return failed:", error);
+    logUnexpectedActionError("src/app/(dashboard)/sales/[saleId]/return-actions.ts", error);
     return { status: "error", message: "The return could not be recorded. No changes should be committed; check the server log if the problem continues." };
   }
 }

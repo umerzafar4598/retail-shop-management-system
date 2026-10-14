@@ -1,5 +1,6 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 
 import { requirePermission } from "@/lib/authorization";
@@ -36,7 +37,7 @@ export async function createCustomerAction(
     return { status: "success", message: `${customer.name} was added successfully.`, customerId: customer.id };
   } catch (error) {
     if (error instanceof CustomerRecordError) return { status: "error", message: error.message };
-    console.error("Create customer failed:", error);
+    logUnexpectedActionError("src/app/(dashboard)/customers/actions.ts", error);
     return { status: "error", message: "The customer could not be saved. Check the server log if the problem continues." };
   }
 }

@@ -1,5 +1,6 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 
 import { requirePermission } from "@/lib/authorization";
@@ -31,7 +32,7 @@ export async function saveCashDrawerDefaultsAction(_previous: CashDrawerSettings
     return { status: "success", message: `Default drawers saved. Retail: ${retail}. Services: ${services}.` };
   } catch (error) {
     if (error instanceof CashDrawerSettingsError) return { status: "error", message: error.message };
-    console.error("Save cash drawer defaults failed:", error);
+    logUnexpectedActionError("src/app/(dashboard)/settings/cash-drawers/actions.ts", error);
     return { status: "error", message: "Cash drawer defaults could not be saved. No partial settings should be committed; check the server log if this continues." };
   }
 }

@@ -1,5 +1,6 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 import { sql } from "drizzle-orm";
 
@@ -16,111 +17,99 @@ type UpdateShopSettingsInput = {
     receiptFooter: string | null;
     logoUrl: string | null;
 };
+type ActionResult = { success: boolean; message: string };
+
+class ShopSettingsInputError extends Error {}
 
 function optionalText(value: unknown, field: string, maxLength: number): string | null {
     if (value === null || value === undefined) return null;
-    if (typeof value !== "string") throw new Error(`${field} must be text.`);
+    if (typeof value !== "string") throw new ShopSettingsInputError(`${field} must be text.`);
     const normalized = value.trim();
     if (!normalized) return null;
-    if (normalized.length > maxLength) throw new Error(`${field} must not exceed ${maxLength} characters.`);
+    if (normalized.length > maxLength) throw new ShopSettingsInputError(`${field} must not exceed ${maxLength} characters.`);
     return normalized;
 }
 
-export async function updateShopSettings(input: UpdateShopSettingsInput) {
+export async function updateShopSettings(input: UpdateShopSettingsInput): Promise<ActionResult> {
+    // Do not catch redirects from authorization and turn them into ordinary errors.
     const context = await requirePermission("shop.update");
-    const session = await getCurrentSession();
-    if (!session) throw new Error("You must be authenticated.");
-    if (!input || typeof input !== "object") throw new Error("Shop settings are invalid.");
 
-    const name = typeof input.name === "string" ? input.name.trim() : "";
-    if (!name) throw new Error("Shop name is required.");
-    if (name.length > 150) throw new Error("Shop name must not exceed 150 characters.");
+    try {
+        const session = await getCurrentSession();
+        if (!session) return { success: false, message: "Your session has expired. Sign in again." };
+        if (!input || typeof input !== "object") throw new ShopSettingsInputError("Shop settings are invalid.");
 
-    const phone = optionalText(input.phone, "Phone", 50);
-    const address = optionalText(input.address, "Address", 1000);
-    const receiptHeader = optionalText(input.receiptHeader, "Receipt header", 500);
-    const receiptFooter = optionalText(input.receiptFooter, "Receipt footer", 500);
-    const logoUrl = optionalText(input.logoUrl, "Logo URL", 1000);
+        const name = typeof input.name === "string" ? input.name.trim() : "";
+        if (!name) throw new ShopSettingsInputError("Shop name is required.");
+        if (name.length > 150) throw new ShopSettingsInputError("Shop name must not exceed 150 characters.");
 
-    await db.transaction(async (tx) => {
-        const shopResult = await tx.execute<{ name: string }>(sql`
-            SELECT name FROM shops WHERE id = ${context.shopId} LIMIT 1 FOR UPDATE
-        `);
-        const previousShop = shopResult.rows[0];
-        if (!previousShop) throw new Error("Shop was not found.");
+        const phone = optionalText(input.phone, "Phone", 50);
+        const address = optionalText(input.address, "Address", 1000);
+        const receiptHeader = optionalText(input.receiptHeader, "Receipt header", 500);
+        const receiptFooter = optionalText(input.receiptFooter, "Receipt footer", 500);
+        const logoUrl = optionalText(input.logoUrl, "Logo URL", 1000);
 
-        const settingsResult = await tx.execute<{
-            phone: string | null;
-            address: string | null;
-            receiptHeader: string | null;
-            receiptFooter: string | null;
-            logoUrl: string | null;
-        }>(sql`
-            SELECT
-              phone,
-              address,
-              receipt_header AS "receiptHeader",
-              receipt_footer AS "receiptFooter",
-              logo_url AS "logoUrl"
-            FROM shop_settings
-            WHERE shop_id = ${context.shopId}
-            LIMIT 1
-            FOR UPDATE
-        `);
-        const previousSettings = settingsResult.rows[0] ?? {
-            phone: null,
-            address: null,
-            receiptHeader: null,
-            receiptFooter: null,
-            logoUrl: null,
-        };
+        await db.transaction(async (tx) => {
+            const shopResult = await tx.execute<{ name: string }>(sql`
+                SELECT name FROM shops WHERE id = ${context.shopId} LIMIT 1 FOR UPDATE
+            `);
+            const previousShop = shopResult.rows[0];
+            if (!previousShop) throw new ShopSettingsInputError("Shop was not found.");
 
-        const changedFields: string[] = [];
-        if (previousShop.name !== name) changedFields.push("name");
-        if (previousSettings.phone !== phone) changedFields.push("phone");
-        if (previousSettings.address !== address) changedFields.push("address");
-        if (previousSettings.receiptHeader !== receiptHeader) changedFields.push("receiptHeader");
-        if (previousSettings.receiptFooter !== receiptFooter) changedFields.push("receiptFooter");
-        if (previousSettings.logoUrl !== logoUrl) changedFields.push("logoUrl");
+            const settingsResult = await tx.execute<{
+                phone: string | null;
+                address: string | null;
+                receiptHeader: string | null;
+                receiptFooter: string | null;
+                logoUrl: string | null;
+            }>(sql`
+                SELECT phone, address, receipt_header AS "receiptHeader",
+                       receipt_footer AS "receiptFooter", logo_url AS "logoUrl"
+                FROM shop_settings
+                WHERE shop_id = ${context.shopId}
+                LIMIT 1 FOR UPDATE
+            `);
+            const previousSettings = settingsResult.rows[0] ?? {
+                phone: null, address: null, receiptHeader: null,
+                receiptFooter: null, logoUrl: null,
+            };
 
-        await tx.execute(sql`
-            UPDATE shops SET name = ${name}, updated_at = now()
-            WHERE id = ${context.shopId}
-        `);
-        await tx.execute(sql`
-            INSERT INTO shop_settings (
-              shop_id, phone, address, receipt_header, receipt_footer, logo_url
-            )
-            VALUES (
-              ${context.shopId}, ${phone}, ${address}, ${receiptHeader}, ${receiptFooter}, ${logoUrl}
-            )
-            ON CONFLICT (shop_id)
-            DO UPDATE SET
-              phone = EXCLUDED.phone,
-              address = EXCLUDED.address,
-              receipt_header = EXCLUDED.receipt_header,
-              receipt_footer = EXCLUDED.receipt_footer,
-              logo_url = EXCLUDED.logo_url,
-              updated_at = now()
-        `);
+            const changedFields: string[] = [];
+            if (previousShop.name !== name) changedFields.push("name");
+            if (previousSettings.phone !== phone) changedFields.push("phone");
+            if (previousSettings.address !== address) changedFields.push("address");
+            if (previousSettings.receiptHeader !== receiptHeader) changedFields.push("receiptHeader");
+            if (previousSettings.receiptFooter !== receiptFooter) changedFields.push("receiptFooter");
+            if (previousSettings.logoUrl !== logoUrl) changedFields.push("logoUrl");
 
-        if (changedFields.length > 0) {
-            await tx.insert(auditLogs).values({
-                shopId: context.shopId,
-                actorUserId: session.user.id,
-                action: "SHOP_SETTINGS_UPDATED",
-                entityType: "SHOP_SETTINGS",
-                entityId: context.shopId,
-                metadata: {
-                    changedFields,
-                    beforeShopName: previousShop.name,
-                    afterShopName: name,
-                },
-            });
-        }
-    });
+            await tx.execute(sql`UPDATE shops SET name = ${name}, updated_at = now() WHERE id = ${context.shopId}`);
+            await tx.execute(sql`
+                INSERT INTO shop_settings (shop_id, phone, address, receipt_header, receipt_footer, logo_url)
+                VALUES (${context.shopId}, ${phone}, ${address}, ${receiptHeader}, ${receiptFooter}, ${logoUrl})
+                ON CONFLICT (shop_id) DO UPDATE SET
+                  phone = EXCLUDED.phone, address = EXCLUDED.address,
+                  receipt_header = EXCLUDED.receipt_header, receipt_footer = EXCLUDED.receipt_footer,
+                  logo_url = EXCLUDED.logo_url, updated_at = now()
+            `);
 
-    revalidatePath("/settings/shop");
-    revalidatePath("/dashboard");
-    return { success: true };
+            if (changedFields.length > 0) {
+                await tx.insert(auditLogs).values({
+                    shopId: context.shopId,
+                    actorUserId: session.user.id,
+                    action: "SHOP_SETTINGS_UPDATED",
+                    entityType: "SHOP_SETTINGS",
+                    entityId: context.shopId,
+                    metadata: { changedFields, beforeShopName: previousShop.name, afterShopName: name },
+                });
+            }
+        });
+
+        revalidatePath("/settings/shop");
+        revalidatePath("/dashboard");
+        return { success: true, message: "Shop settings saved successfully." };
+    } catch (error) {
+        if (error instanceof ShopSettingsInputError) return { success: false, message: error.message };
+        logUnexpectedActionError("src/app/(dashboard)/settings/shop/actions.ts", error);
+        return { success: false, message: "Shop settings could not be saved. Please try again." };
+    }
 }

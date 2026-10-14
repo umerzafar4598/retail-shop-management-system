@@ -1,5 +1,6 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 
 import { requirePermission } from "@/lib/authorization";
@@ -40,7 +41,7 @@ export async function createPurchaseDraftAction(
             return { status: "error", message: error.message };
         }
 
-        console.error("Create purchase draft failed:", error);
+        logUnexpectedActionError("src/app/(dashboard)/purchases/actions.ts", error);
         return {
             status: "error",
             message: "The purchase draft could not be saved. Please try again.",

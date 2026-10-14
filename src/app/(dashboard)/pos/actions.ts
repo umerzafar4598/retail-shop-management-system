@@ -1,5 +1,6 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 
 import { requirePermission } from "@/lib/authorization";
@@ -54,7 +55,7 @@ export async function completePosSaleAction(
     if (error instanceof PosCheckoutError) {
       return { status: "error", message: error.message };
     }
-    console.error("POS checkout failed:", error);
+    logUnexpectedActionError("src/app/(dashboard)/pos/actions.ts", error);
     return {
       status: "error",
       message: "The sale could not be completed. No partial checkout should be committed. Check the server log if the problem continues.",

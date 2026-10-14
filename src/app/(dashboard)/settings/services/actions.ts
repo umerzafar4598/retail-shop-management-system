@@ -1,5 +1,6 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 
 import { requirePermission } from "@/lib/authorization";
@@ -27,7 +28,7 @@ export async function createServiceTypeAction(_previous: ServiceTypeActionState,
     return { status: "success", message: "Service type created." };
   } catch (error) {
     if (error instanceof ShopServiceError) return { status: "error", message: error.message };
-    console.error("Create service type failed:", error);
+    logUnexpectedActionError("src/app/(dashboard)/settings/services/actions.ts", error);
     return { status: "error", message: "Service type could not be created. Check its code and the server log." };
   }
 }
@@ -52,7 +53,7 @@ export async function updateServiceTypeAction(_previous: ServiceTypeActionState,
     return { status: "success", message: "Service type settings saved." };
   } catch (error) {
     if (error instanceof ShopServiceError) return { status: "error", message: error.message };
-    console.error("Update service type failed:", error);
+    logUnexpectedActionError("src/app/(dashboard)/settings/services/actions.ts", error);
     return { status: "error", message: "Service type settings could not be saved. Check the server log." };
   }
 }

@@ -1,8 +1,12 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 
+import { requirePermission } from "@/lib/authorization";
+
 import {
+    FinancialAccountError,
     createFinancialAccount,
     setFinancialAccountStatus,
     updateFinancialAccount,
@@ -20,6 +24,8 @@ const FINANCE_ACCOUNTS_PATH = "/settings/finance/accounts";
 export async function createFinancialAccountAction(
     input: CreateFinancialAccountInput,
 ): Promise<FinanceAccountActionResult> {
+    await requirePermission("financial_accounts.create");
+
     try {
         await createFinancialAccount(input);
 
@@ -30,19 +36,19 @@ export async function createFinancialAccountAction(
             message: `${input.name.trim()} was created successfully.`,
         };
     } catch (error) {
-        return {
-            success: false,
-            message:
-                error instanceof Error
-                    ? error.message
-                    : "Failed to create the financial account.",
-        };
+        if (error instanceof FinancialAccountError) {
+            return { success: false, message: error.message };
+        }
+        logUnexpectedActionError("src/app/(dashboard)/settings/finance/accounts/actions.ts", error);
+        return { success: false, message: "The financial account could not be created. Please try again." };
     }
 }
 
 export async function updateFinancialAccountAction(
     input: UpdateFinancialAccountInput,
 ): Promise<FinanceAccountActionResult> {
+    await requirePermission("financial_accounts.update");
+
     try {
         await updateFinancialAccount(input);
 
@@ -53,13 +59,11 @@ export async function updateFinancialAccountAction(
             message: `${input.name.trim()} was updated successfully.`,
         };
     } catch (error) {
-        return {
-            success: false,
-            message:
-                error instanceof Error
-                    ? error.message
-                    : "Failed to update the financial account.",
-        };
+        if (error instanceof FinancialAccountError) {
+            return { success: false, message: error.message };
+        }
+        logUnexpectedActionError("src/app/(dashboard)/settings/finance/accounts/actions.ts", error);
+        return { success: false, message: "The financial account could not be updated. Please try again." };
     }
 }
 
@@ -67,6 +71,8 @@ export async function setFinancialAccountStatusAction(
     financialAccountId: string,
     isActive: boolean,
 ): Promise<FinanceAccountActionResult> {
+    await requirePermission("financial_accounts.deactivate");
+
     try {
         await setFinancialAccountStatus(
             financialAccountId,
@@ -82,12 +88,10 @@ export async function setFinancialAccountStatusAction(
                 : "Financial account deactivated successfully.",
         };
     } catch (error) {
-        return {
-            success: false,
-            message:
-                error instanceof Error
-                    ? error.message
-                    : "Failed to change the financial account status.",
-        };
+        if (error instanceof FinancialAccountError) {
+            return { success: false, message: error.message };
+        }
+        logUnexpectedActionError("src/app/(dashboard)/settings/finance/accounts/actions.ts", error);
+        return { success: false, message: "The financial account status could not be changed. Please try again." };
     }
 }

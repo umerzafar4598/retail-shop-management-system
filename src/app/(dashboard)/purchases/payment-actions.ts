@@ -1,5 +1,6 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 
 import { requirePermission } from "@/lib/authorization";
@@ -56,7 +57,7 @@ export async function recordSupplierPaymentAction(
             };
         }
 
-        console.error("Supplier payment failed:", error);
+        logUnexpectedActionError("src/app/(dashboard)/purchases/payment-actions.ts", error);
 
         return {
             status: "error",

@@ -1,5 +1,6 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 
 import { requirePermission } from "@/lib/authorization";
@@ -39,7 +40,7 @@ export async function openCashSessionAction(_previous: CashSessionActionState, f
     return { status: "success", message: `Cash session opened for ${result.accountName}. Opening physical cash: Rs ${result.openingAmount}; ledger baseline: Rs ${result.openingLedgerBalance}.` };
   } catch (error) {
     if (error instanceof CashSessionError) return { status: "error", message: error.message };
-    console.error("Open cash session failed:", error);
+    logUnexpectedActionError("src/app/(dashboard)/cash-sessions/actions.ts", error);
     return { status: "error", message: "The cash session could not be opened. No partial session should be committed; check the server logs if this continues." };
   }
 }
@@ -60,7 +61,7 @@ export async function closeCashSessionAction(_previous: CashSessionActionState, 
       : { status: "success", message: `Count recorded; discrepancy review is required. Expected Rs ${result.expectedClosingAmount}, counted Rs ${result.actualClosingAmount}, difference Rs ${result.difference}. Add an acknowledgement note before opening another session for this drawer.` };
   } catch (error) {
     if (error instanceof CashSessionError) return { status: "error", message: error.message };
-    console.error("Close cash session failed:", error);
+    logUnexpectedActionError("src/app/(dashboard)/cash-sessions/actions.ts", error);
     return { status: "error", message: "The cash session could not be closed. Check the server logs if this continues." };
   }
 }
@@ -79,7 +80,7 @@ export async function acknowledgeCashDiscrepancyAction(_previous: CashSessionAct
     return { status: "success", message: `Discrepancy reviewed for ${result.accountName}. Recorded difference remains Rs ${result.difference}; no automatic accounting adjustment was posted.` };
   } catch (error) {
     if (error instanceof CashSessionError) return { status: "error", message: error.message };
-    console.error("Acknowledge cash discrepancy failed:", error);
+    logUnexpectedActionError("src/app/(dashboard)/cash-sessions/actions.ts", error);
     return { status: "error", message: "The discrepancy acknowledgement could not be saved." };
   }
 }

@@ -1,6 +1,8 @@
 import Decimal from "decimal.js";
 import { sql } from "drizzle-orm";
 
+import { assertBalancedLedgerAmounts } from "./ledger-invariants";
+
 import { db } from "@/db/client";
 
 export type LedgerPostingLine = {
@@ -193,15 +195,6 @@ function normalizeInput(
                 `Credit on line ${index + 1}`,
             );
 
-            const hasDebit = debit.gt(0);
-            const hasCredit = credit.gt(0);
-
-            if (hasDebit === hasCredit) {
-                throw new Error(
-                    `Line ${index + 1} must contain either a debit or a credit amount, but not both.`,
-                );
-            }
-
             return {
                 ledgerAccountId:
                     line.ledgerAccountId.trim(),
@@ -217,31 +210,8 @@ function normalizeInput(
         },
     );
 
-    const totalDebit = lines.reduce(
-        (total, line) =>
-            total.plus(line.debit),
-        new Decimal(0),
-    );
-
-    const totalCredit = lines.reduce(
-        (total, line) =>
-            total.plus(line.credit),
-        new Decimal(0),
-    );
-
-    if (totalDebit.isZero()) {
-        throw new Error(
-            "A ledger transaction amount must be greater than zero.",
-        );
-    }
-
-    if (!totalDebit.equals(totalCredit)) {
-        throw new Error(
-            `Ledger transaction is unbalanced. Debit = ${totalDebit.toFixed(
-                2,
-            )}, Credit = ${totalCredit.toFixed(2)}.`,
-        );
-    }
+    const { totalDebit, totalCredit } =
+        assertBalancedLedgerAmounts(lines);
 
     return {
         referenceType,

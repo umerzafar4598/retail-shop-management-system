@@ -1,5 +1,6 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 
 import {
@@ -20,7 +21,7 @@ function getErrorMessage(error: unknown): string {
         return error.message;
     }
 
-    console.error("Supplier action failed:", error);
+    logUnexpectedActionError("src/app/(dashboard)/settings/suppliers/actions.ts", error);
     return "The supplier could not be saved. Please try again.";
 }
 

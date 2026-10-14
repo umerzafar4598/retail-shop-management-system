@@ -1,5 +1,6 @@
 "use server";
 
+import { logUnexpectedActionError } from "@/lib/errors/safe-action-errors";
 import { revalidatePath } from "next/cache";
 
 import { requirePermission } from "@/lib/authorization";
@@ -35,7 +36,7 @@ export async function createExpenseAction(_previous: ExpenseActionState, formDat
     return { status: "success", expenseId: result.id, message: `Expense ${result.documentNo} recorded: Rs ${result.amount} for ${result.categoryName}, paid from ${result.financialAccountName}.` };
   } catch (error) {
     if (error instanceof ExpenseError) return { status: "error", message: error.message };
-    console.error("Create expense failed:", error);
+    logUnexpectedActionError("src/app/(dashboard)/expenses/actions.ts", error);
     return { status: "error", message: "The expense could not be recorded. No partial journal should be committed; check the server log if the problem continues." };
   }
 }

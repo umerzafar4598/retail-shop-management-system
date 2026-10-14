@@ -7,6 +7,15 @@ import { auditLogs } from "@/db/schema";
 import { requirePermission } from "@/lib/authorization";
 import { getCurrentSession } from "@/lib/session";
 
+/** Expected, user-safe validation/business-rule failure. Unexpected database errors
+ * remain ordinary errors and are reported with a generic message by server actions. */
+export class FinancialAccountError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "FinancialAccountError";
+    }
+}
+
 export const FINANCIAL_ACCOUNT_KINDS = [
     "CASH",
     "DIGITAL_WALLET",
@@ -70,7 +79,7 @@ function validateKind(kind: string): asserts kind is FinancialAccountKind {
             kind as FinancialAccountKind,
         )
     ) {
-        throw new Error("Invalid financial account type.");
+        throw new FinancialAccountError("Invalid financial account type.");
     }
 }
 
@@ -82,17 +91,17 @@ function normalizeCreateInput(
     const identifier = input.identifier?.trim() || null;
 
     if (!name) {
-        throw new Error("Account name is required.");
+        throw new FinancialAccountError("Account name is required.");
     }
 
     if (name.length > 100) {
-        throw new Error("Account name must not exceed 100 characters.");
+        throw new FinancialAccountError("Account name must not exceed 100 characters.");
     }
 
     validateKind(input.kind);
 
     if (!provider && input.kind !== "CASH") {
-        throw new Error("Provider is required.");
+        throw new FinancialAccountError("Provider is required.");
     }
 
     if (
@@ -100,17 +109,17 @@ function normalizeCreateInput(
             input.kind === "BANK") &&
         !identifier
     ) {
-        throw new Error(
+        throw new FinancialAccountError(
             "An identifier is required for wallet and bank accounts.",
         );
     }
 
     if (provider.length > 100) {
-        throw new Error("Provider must not exceed 100 characters.");
+        throw new FinancialAccountError("Provider must not exceed 100 characters.");
     }
 
     if (identifier && identifier.length > 100) {
-        throw new Error(
+        throw new FinancialAccountError(
             "Identifier must not exceed 100 characters.",
         );
     }
@@ -132,23 +141,23 @@ function normalizeUpdateInput(
     const identifier = input.identifier?.trim() || null;
 
     if (!name) {
-        throw new Error("Account name is required.");
+        throw new FinancialAccountError("Account name is required.");
     }
 
     if (!provider) {
-        throw new Error("Provider is required.");
+        throw new FinancialAccountError("Provider is required.");
     }
 
     if (name.length > 100) {
-        throw new Error("Account name must not exceed 100 characters.");
+        throw new FinancialAccountError("Account name must not exceed 100 characters.");
     }
 
     if (provider.length > 100) {
-        throw new Error("Provider must not exceed 100 characters.");
+        throw new FinancialAccountError("Provider must not exceed 100 characters.");
     }
 
     if (identifier && identifier.length > 100) {
-        throw new Error(
+        throw new FinancialAccountError(
             "Identifier must not exceed 100 characters.",
         );
     }
@@ -157,7 +166,7 @@ function normalizeUpdateInput(
         (kind === "DIGITAL_WALLET" || kind === "BANK") &&
         !identifier
     ) {
-        throw new Error(
+        throw new FinancialAccountError(
             "An identifier is required for wallet and bank accounts.",
         );
     }
@@ -199,7 +208,7 @@ async function getNextLedgerCode(
     const nextCode = result.rows[0]?.nextCode;
 
     if (!nextCode) {
-        throw new Error(
+        throw new FinancialAccountError(
             "Unable to generate a ledger account code.",
         );
     }
@@ -238,7 +247,7 @@ async function getOrCreateCashDrawersParent(
     const existing = existingResult.rows[0];
     if (existing) {
         if (!existing.active) {
-            throw new Error(
+            throw new FinancialAccountError(
                 'The Cash Drawers ledger parent is inactive. Ask an administrator to review the chart of accounts.',
             );
         }
@@ -268,7 +277,7 @@ async function getOrCreateCashDrawersParent(
 
     const code = codeResult.rows[0]?.code;
     if (!code) {
-        throw new Error(
+        throw new FinancialAccountError(
             'No available ledger-code range exists for additional cash drawers. Review the chart of accounts before creating another drawer.',
         );
     }
@@ -301,7 +310,7 @@ async function getOrCreateCashDrawersParent(
 
     const created = createdResult.rows[0];
     if (!created) {
-        throw new Error('Failed to create the Cash Drawers ledger parent.');
+        throw new FinancialAccountError('Failed to create the Cash Drawers ledger parent.');
     }
 
     return created;
@@ -377,14 +386,14 @@ export async function createFinancialAccount(
         "financial_accounts.create",
     );
     const session = await getCurrentSession();
-    if (!session) throw new Error("You must be authenticated.");
+    if (!session) throw new FinancialAccountError("You must be authenticated.");
 
     const normalized = normalizeCreateInput(input);
 
     if (
         normalized.name.toLowerCase() === "main cash drawer"
     ) {
-        throw new Error(
+        throw new FinancialAccountError(
             "Main Cash Drawer is reserved for the system cash account.",
         );
     }
@@ -399,7 +408,7 @@ export async function createFinancialAccount(
     `);
 
         if (duplicateName.rows[0]) {
-            throw new Error(
+            throw new FinancialAccountError(
                 "A financial account with this name already exists.",
             );
         }
@@ -416,7 +425,7 @@ export async function createFinancialAccount(
         `);
 
             if (duplicateIdentifier.rows[0]) {
-                throw new Error(
+                throw new FinancialAccountError(
                     "A financial account with this provider and identifier already exists.",
                 );
             }
@@ -447,7 +456,7 @@ export async function createFinancialAccount(
         }
 
         if (!parent) {
-            throw new Error(
+            throw new FinancialAccountError(
                 `The ${input.kind} ledger parent account has not been configured.`,
             );
         }
@@ -488,7 +497,7 @@ export async function createFinancialAccount(
         const ledgerAccount = ledgerResult.rows[0];
 
         if (!ledgerAccount) {
-            throw new Error(
+            throw new FinancialAccountError(
                 "Failed to create the linked ledger account.",
             );
         }
@@ -519,7 +528,7 @@ export async function createFinancialAccount(
         const financialAccount = financialResult.rows[0];
 
         if (!financialAccount) {
-            throw new Error(
+            throw new FinancialAccountError(
                 "Failed to create the financial account.",
             );
         }
@@ -552,7 +561,7 @@ export async function updateFinancialAccount(
         "financial_accounts.update",
     );
     const session = await getCurrentSession();
-    if (!session) throw new Error("You must be authenticated.");
+    if (!session) throw new FinancialAccountError("You must be authenticated.");
 
     await db.transaction(async (tx) => {
         const accountResult = await tx.execute<{
@@ -584,11 +593,11 @@ export async function updateFinancialAccount(
         const account = accountResult.rows[0];
 
         if (!account) {
-            throw new Error("Financial account was not found.");
+            throw new FinancialAccountError("Financial account was not found.");
         }
 
         if (account.isSystem) {
-            throw new Error(
+            throw new FinancialAccountError(
                 "System financial accounts cannot be edited here.",
             );
         }
@@ -608,7 +617,7 @@ export async function updateFinancialAccount(
     `);
 
         if (duplicateName.rows[0]) {
-            throw new Error(
+            throw new FinancialAccountError(
                 "A financial account with this name already exists.",
             );
         }
@@ -626,7 +635,7 @@ export async function updateFinancialAccount(
         `);
 
             if (duplicateIdentifier.rows[0]) {
-                throw new Error(
+                throw new FinancialAccountError(
                     "A financial account with this provider and identifier already exists.",
                 );
             }
@@ -683,7 +692,7 @@ export async function setFinancialAccountStatus(
         "financial_accounts.deactivate",
     );
     const session = await getCurrentSession();
-    if (!session) throw new Error("You must be authenticated.");
+    if (!session) throw new FinancialAccountError("You must be authenticated.");
 
     await db.transaction(async (tx) => {
         const result = await tx.execute<{
@@ -736,13 +745,13 @@ export async function setFinancialAccountStatus(
         const account = result.rows[0];
 
         if (!account) {
-            throw new Error(
+            throw new FinancialAccountError(
                 "Financial account was not found.",
             );
         }
 
         if (account.isSystem) {
-            throw new Error(
+            throw new FinancialAccountError(
                 "System financial accounts cannot be deactivated.",
             );
         }
@@ -758,7 +767,7 @@ export async function setFinancialAccountStatus(
 
             if (defaultAssignment.rows[0]) {
                 const purpose = defaultAssignment.rows[0].purpose.toLowerCase();
-                throw new Error(
+                throw new FinancialAccountError(
                     `This account is assigned as the ${purpose} default cash drawer. Change the drawer assignment before deactivating it.`,
                 );
             }
@@ -773,14 +782,14 @@ export async function setFinancialAccountStatus(
         `);
 
             if (openSession.rows[0]) {
-                throw new Error(
+                throw new FinancialAccountError(
                     "Close the cash session before deactivating this drawer.",
                 );
             }
         }
 
         if (!isActive && Number(account.balance) !== 0) {
-            throw new Error(
+            throw new FinancialAccountError(
                 "The account must have a zero balance before it can be deactivated.",
             );
         }
